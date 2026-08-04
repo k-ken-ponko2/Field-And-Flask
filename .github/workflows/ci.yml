@@ -1,0 +1,53 @@
+name: CI
+
+# core/ の純粋ロジックを Godot 4.7 のヘッドレスモードで検証する。
+# 「UI を起動せず化学を検証できる」設計原則（設計書 §8）を CI で担保する。
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+  workflow_dispatch:
+
+env:
+  # 目標バージョン。上げるときはここだけ変える。
+  GODOT_VERSION: "4.7-stable"
+
+jobs:
+  core-tests:
+    name: core headless tests (Godot ${{ env.GODOT_VERSION }})
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Cache Godot binary
+        id: cache-godot
+        uses: actions/cache@v4
+        with:
+          path: ~/godot
+          key: godot-${{ env.GODOT_VERSION }}-linux-x86_64
+
+      - name: Download Godot ${{ env.GODOT_VERSION }}
+        if: steps.cache-godot.outputs.cache-hit != 'true'
+        run: |
+          set -euo pipefail
+          mkdir -p ~/godot
+          url="https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}/Godot_v${GODOT_VERSION}_linux.x86_64.zip"
+          echo "Downloading $url"
+          curl -fsSL -o /tmp/godot.zip "$url"
+          unzip -o -q /tmp/godot.zip -d ~/godot
+          mv ~/godot/Godot_v${GODOT_VERSION}_linux.x86_64 ~/godot/godot
+          chmod +x ~/godot/godot
+
+      - name: Godot version
+        run: ~/godot/godot --headless --version
+
+      - name: Import project (register class_name globals)
+        run: ~/godot/godot --headless --path . --import
+
+      - name: Run core tests
+        run: ~/godot/godot --headless --path . --script res://core/__tests__/run_tests.gd
+
+      - name: Smoke test main scene
+        run: ~/godot/godot --headless --path . --quit-after 2
