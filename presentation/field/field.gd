@@ -198,7 +198,7 @@ func _add_player_shadow() -> void:
 	var sh := Sprite2D.new()
 	sh.texture = _shadow_tex
 	sh.z_index = -1
-	sh.position = Vector2(0.0, 10.0)
+	sh.position = Vector2(0.0, 14.0)
 	_player.add_child(sh)
 
 func _build_atmosphere() -> void:
