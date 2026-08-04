@@ -1,9 +1,9 @@
-[gd_resource type="Resource" script_class="ReactionMap" load_steps=4 format=3]
+[gd_resource type="Resource" script_class="ReactionMap" load_steps=6 format=3]
 
 [ext_resource type="Script" path="res://core/reactions/reaction_map.gd" id="1"]
 [ext_resource type="Script" path="res://core/reactions/reaction_region.gd" id="2"]
 
-[sub_resource type="Resource" id="region_target"]
+[sub_resource type="Resource" id="region_dilute"]
 script = ExtResource("2")
 kind = 0
 label = "希硫酸"
@@ -14,6 +14,18 @@ base_purity = 0.7
 requires_ph = true
 ph_min = 0.0
 ph_max = 3.0
+
+[sub_resource type="Resource" id="region_concentrated"]
+script = ExtResource("2")
+kind = 0
+label = "濃硫酸"
+center = Vector2(7, 5)
+radius = 1.2
+product_id = &"concentrated_sulfuric_acid"
+base_purity = 0.9
+requires_ph = true
+ph_min = 0.0
+ph_max = 1.0
 
 [sub_resource type="Resource" id="region_hazard"]
 script = ExtResource("2")
@@ -31,4 +43,4 @@ display_name = "酸・塩基系マップ"
 axis_x = "濃度"
 axis_y = "温度"
 bounds = Rect2(0, 0, 10, 10)
-regions = [SubResource("region_target"), SubResource("region_hazard")]
+regions = [SubResource("region_dilute"), SubResource("region_concentrated"), SubResource("region_hazard")]

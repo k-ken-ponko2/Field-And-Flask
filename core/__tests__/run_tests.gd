@@ -16,6 +16,7 @@ func _initialize() -> void:
 	_test_reaction()
 	_test_ph()
 	_test_reaction_hazards()
+	_test_acid_base_scenario()
 	_test_calendar()
 	print("========================================")
 	print("Field & Flask core tests: passed=%d failed=%d" % [_passed, _failed])
@@ -203,6 +204,39 @@ func _test_reaction_hazards() -> void:
 	ps.add_acid(2.0)  # pH を下げて条件内へ
 	_ok(ps.ph() <= 4.0, "酸を加えて pH を条件内へ")
 	_ok(ps.reached_target() == ph_target, "空間＋pH 条件を満たして達成")
+
+# --- 酸・塩基マップ 統合シナリオ（実データ .tres を読み込む） ---------------
+# 「緑礬で濃硫酸を作る → 希釈して希硫酸にする → 石灰で中和すると条件を外れる」
+# という一本の筋を、data/ の実リソースを読んで検証する（.tres の回帰も兼ねる）。
+
+func _test_acid_base_scenario() -> void:
+	var map: ReactionMap = load("res://data/reactions/acid_base_map.tres")
+	_ok(map != null, "酸塩基マップを .tres から読み込める")
+	var vitriol: MaterialDef = load("res://data/materials/vitriol.tres")
+	var lime: MaterialDef = load("res://data/materials/lime.tres")
+	_ok(vitriol != null and lime != null, "素材 .tres を読み込める")
+	if map == null or vitriol == null or lime == null:
+		return
+
+	# 緑礬を重ねて投入 → 右上・強酸性へ動き、濃硫酸の領域へ。
+	var sim := ReactionSim.new(map, Vector2(4, 3))
+	for i in 5:
+		sim.add_material(vitriol)
+	var conc := sim.reached_target()
+	_ok(conc != null and conc.product_id == &"concentrated_sulfuric_acid", "緑礬の投入で濃硫酸に到達")
+
+	# 加水で希釈し、加熱して希硫酸の領域へ（酸性のまま濃度を下げる）。
+	sim.add_water(5.0)
+	sim.heat(2.0)
+	var dilute := sim.reached_target()
+	_ok(dilute != null and dilute.product_id == &"dilute_sulfuric_acid", "希釈して希硫酸へ移行")
+	_ok(not sim.batch_lost and sim.yield_ratio() > 0.0, "全損せず収率が残る")
+
+	# 石灰（塩基）で中和すると pH が上がり、希硫酸の pH 条件を外れる。
+	for i in 6:
+		sim.add_material(lime)
+	_ok(sim.ph() > 3.0, "石灰で中和すると pH が希硫酸条件(≤3)を外れる")
+	_ok(sim.reached_target() == null, "中和後は希硫酸として成立しない")
 
 # --- カレンダー -------------------------------------------------------------
 

@@ -1,0 +1,12 @@
+[gd_resource type="Resource" script_class="MaterialDef" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://core/materials/material_def.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = &"vitriol"
+display_name = "緑礬"
+description = "硫酸塩の鉱物。酸系マップでは右上（濃度・温度を上げる）へ跳躍し、強い酸性を組成へ加える。投入を重ねると濃硫酸の領域へ到達する。"
+jump_vector = Vector2(0.6, 0.2)
+jump_magnitude = 1.0
+acidity = 1.0
