@@ -37,6 +37,8 @@ void fragment() {
 }
 """
 
+const FieldArt = preload("res://presentation/field/field_art.gd")
+
 var _rng := RandomNumberGenerator.new()
 var _shadow_tex: Texture2D
 

@@ -2,7 +2,8 @@
 ##
 ## アート素材が無くても「それっぽい」見た目にするための手続き生成。ピクセル単位で
 ## 陰影を付けた木・岩・茂み・草・影を作る。将来は本物のスプライトに差し替え可能。
-class_name FieldArt
+##
+## global class_name は使わず、利用側から preload して使う（未インポート状態でも動く）。
 extends RefCounted
 
 const TRUNK := Color(0.42, 0.30, 0.20)
