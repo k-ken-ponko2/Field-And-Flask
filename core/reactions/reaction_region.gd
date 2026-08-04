@@ -28,6 +28,22 @@ enum Kind {
 ## TARGET のとき、経路が完璧な場合の到達純度の目安。
 @export_range(0.0, 1.0) var base_purity: float = 0.9
 
-## 点がこの領域に含まれるか。
+## pH 条件を課すか（設計書 §3: 目標・暴走域は座標＋pH の複合で定義できる）。
+## true のとき、この領域は空間的に含むだけでなく pH が [ph_min, ph_max] に入る必要がある。
+@export var requires_ph: bool = false
+
+## pH 条件の下限（requires_ph のときのみ有効）。
+@export_range(0.0, 14.0) var ph_min: float = 0.0
+
+## pH 条件の上限（requires_ph のときのみ有効）。
+@export_range(0.0, 14.0) var ph_max: float = 14.0
+
+## 点がこの領域に空間的に含まれるか（pH は見ない）。
 func contains(p: Vector2) -> bool:
 	return p.distance_to(center) <= radius
+
+## この pH が領域の条件を満たすか（pH 条件が無ければ常に true）。
+func accepts_ph(value: float) -> bool:
+	if not requires_ph:
+		return true
+	return value >= ph_min and value <= ph_max

@@ -11,6 +11,9 @@ center = Vector2(2, 6)
 radius = 1.2
 product_id = &"dilute_sulfuric_acid"
 base_purity = 0.7
+requires_ph = true
+ph_min = 0.0
+ph_max = 3.0
 
 [sub_resource type="Resource" id="region_hazard"]
 script = ExtResource("2")

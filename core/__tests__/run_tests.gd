@@ -14,6 +14,8 @@ var _failed := 0
 func _initialize() -> void:
 	_test_purity()
 	_test_reaction()
+	_test_ph()
+	_test_reaction_hazards()
 	_test_calendar()
 	print("========================================")
 	print("Field & Flask core tests: passed=%d failed=%d" % [_passed, _failed])
@@ -101,6 +103,106 @@ func _test_reaction() -> void:
 	var jump := ReactionSim.new(map, Vector2(1, 1))
 	jump.add_material(sulfur)
 	_ok(jump.position == Vector2(3, 3), "素材投入で固有方向へ跳躍")
+
+# --- pH（連続モデル） -------------------------------------------------------
+
+func _test_ph() -> void:
+	var map := ReactionMap.new()
+	map.bounds = Rect2(0, 0, 10, 10)
+
+	# 強酸・高濃度は pH < 2。
+	var acid := ReactionSim.new(map, Vector2(9, 5))  # 濃度 0.9
+	acid.add_acid(1.0)
+	_ok(acid.ph() < 2.0, "強酸・高濃度は pH<2")
+
+	# 希釈すると pH が中性へ寄る（同じ net_acid で濃度だけ下げる）。
+	var diluted := ReactionSim.new(map, Vector2(9, 5))
+	diluted.add_acid(1.0)
+	var before := diluted.ph()
+	diluted.add_water(8.0)  # x:9→1、濃度 0.9→0.1
+	_ok(diluted.ph() > before, "希釈で pH が中性へ寄る")
+	_ok(diluted.ph() < 7.0, "希釈しても酸性のまま（7未満）")
+
+	# 中和: 塩基を加えると pH が 7 に寄る。
+	var neutralize := ReactionSim.new(map, Vector2(9, 5))
+	neutralize.add_acid(1.0)
+	var acidic_ph := neutralize.ph()
+	neutralize.add_base(1.0)  # net_acid → 0
+	_ok(neutralize.ph() > acidic_ph, "塩基投入で pH が上がる")
+	_ok(absf(neutralize.ph() - 7.0) < 0.6, "完全中和で pH ≈ 7")
+
+	# 塩基過剰は pH > 7。
+	var basic := ReactionSim.new(map, Vector2(9, 5))
+	basic.add_base(1.0)
+	_ok(basic.ph() > 7.0, "塩基過剰は pH>7")
+
+	# 素材の酸性度が組成に反映される（塩基性素材で中和方向）。
+	var lime := MaterialDef.new()
+	lime.acidity = -1.0
+	lime.jump_magnitude = 1.0
+	var mat := ReactionSim.new(map, Vector2(9, 5))
+	mat.add_acid(1.0)
+	mat.add_material(lime)
+	_ok(mat.net_acid < 1.0, "塩基性素材の投入で net_acid が下がる")
+
+# --- 反応マップ（最短経路・暴走域・pH条件） --------------------------------
+
+func _test_reaction_hazards() -> void:
+	var map := ReactionMap.new()
+	map.bounds = Rect2(0, 0, 10, 10)
+	var target := ReactionRegion.new()
+	target.kind = ReactionRegion.Kind.TARGET
+	target.center = Vector2(2, 6)
+	target.radius = 1.2
+	var hazard := ReactionRegion.new()
+	hazard.kind = ReactionRegion.Kind.HAZARD
+	hazard.center = Vector2(8, 9)
+	hazard.radius = 1.5
+	map.regions = [target, hazard]
+
+	# 最短経路は蛇行より高収率。
+	var straight := ReactionSim.new(map, Vector2(2, 2))
+	straight.heat(4.0)  # → 中心 (2,6)
+	var winding := ReactionSim.new(map, Vector2(2, 2))
+	winding.heat(4.0)       # 中心
+	winding.add_water(1.0)  # (1,6)
+	winding.distill(1.0)    # (2,6) 戻る
+	_ok(straight.yield_ratio() > winding.yield_ratio(), "最短経路は蛇行より高収率")
+	_ok(straight.yield_ratio() > 0.9, "完璧な最短経路はほぼ収率1")
+
+	# 暴走域への突入でバッチ全損＋設備ダメージ。
+	var boom := ReactionSim.new(map, Vector2(8, 2))
+	boom.heat(7.0)  # → 中心 (8,9)
+	_ok(boom.is_hazard(), "暴走域を検出")
+	_ok(boom.batch_lost, "暴走域突入でバッチ全損")
+	_ok(is_equal_approx(boom.yield_ratio(), 0.0), "全損時の収率は 0")
+	_ok(boom.equipment_damage > 0.0, "高温の暴走域は設備を痛める")
+
+	# 縁をかすめると収率が落ちる（同じ経路長で比較）。
+	var graze := ReactionSim.new(map, Vector2(8, 2))
+	graze.heat(5.0)  # → (8,7)、中心まで距離 2.0（半径1.5＋余白1.0の内側）
+	var safe := ReactionSim.new(map, Vector2(5, 2))
+	safe.heat(5.0)   # → (5,7)、何もない
+	_ok(not graze.batch_lost, "かすめただけでは全損しない")
+	_ok(graze.yield_ratio() < safe.yield_ratio(), "暴走域をかすめると収率が落ちる")
+
+	# pH 条件つき目標: 空間的に入っても pH が合わなければ未達成。
+	var ph_target := ReactionRegion.new()
+	ph_target.kind = ReactionRegion.Kind.TARGET
+	ph_target.center = Vector2(5, 5)
+	ph_target.radius = 1.0
+	ph_target.requires_ph = true
+	ph_target.ph_min = 0.0
+	ph_target.ph_max = 4.0
+	var pmap := ReactionMap.new()
+	pmap.bounds = Rect2(0, 0, 10, 10)
+	pmap.regions = [ph_target]
+	var ps := ReactionSim.new(pmap, Vector2(5, 5))
+	_ok(ps.current_region() == ph_target, "空間的には領域内")
+	_ok(ps.reached_target() == null, "pH 未達では目標未達成")
+	ps.add_acid(2.0)  # pH を下げて条件内へ
+	_ok(ps.ph() <= 4.0, "酸を加えて pH を条件内へ")
+	_ok(ps.reached_target() == ph_target, "空間＋pH 条件を満たして達成")
 
 # --- カレンダー -------------------------------------------------------------
 

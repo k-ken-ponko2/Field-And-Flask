@@ -20,3 +20,7 @@ extends Resource
 
 ## 跳躍の強さ（倍率）。純度や量に応じて呼び出し側でさらにスケールしてよい。
 @export var jump_magnitude: float = 1.0
+
+## 投入時の酸性度への寄与（正=酸性 / 負=塩基性 / 0=中性）。
+## バッチの net_acid に jump_magnitude 倍で加算され、pH を動かす（設計書 §3 の中和）。
+@export var acidity: float = 0.0

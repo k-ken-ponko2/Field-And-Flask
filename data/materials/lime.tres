@@ -1,0 +1,12 @@
+[gd_resource type="Resource" script_class="MaterialDef" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://core/materials/material_def.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = &"lime"
+display_name = "石灰"
+description = "石灰岩を焼いて得る塩基性の素材。酸系マップでは組成を塩基側へ動かし、pH を上げる（中和）。"
+jump_vector = Vector2(-0.2, 0.0)
+jump_magnitude = 1.0
+acidity = -1.0
