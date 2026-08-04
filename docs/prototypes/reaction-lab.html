@@ -1,0 +1,541 @@
+<title>反応マップ実機プロトタイプ — Field &amp; Flask</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  :root {
+    --bg:#e9ede7; --panel:#f5f8f2; --panel-2:#fdfefb; --ink:#1b211c; --muted:#5d675e;
+    --line:#d3dacf; --line-strong:#bcc6b6; --accent:#a86e18; --accent-soft:#efe2c8;
+    --good:#3f7a3f; --warn:#b8791f; --crit:#c0392b;
+    --scope-frame:#e5e9df; --scope-ink:#20261f;
+    --mono: ui-monospace,"SF Mono","JetBrains Mono","Menlo",monospace;
+    --sans: system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg:#0e120e; --panel:#161b16; --panel-2:#1d231c; --ink:#e7ece5; --muted:#93a08f;
+      --line:#2b332b; --line-strong:#3a443a; --accent:#e0a34a; --accent-soft:#39301c;
+      --good:#6fbf6f; --warn:#e0a34a; --crit:#e5705f;
+      --scope-frame:#141a13; --scope-ink:#cdd6c8;
+    }
+  }
+  :root[data-theme="light"] {
+    --bg:#e9ede7; --panel:#f5f8f2; --panel-2:#fdfefb; --ink:#1b211c; --muted:#5d675e;
+    --line:#d3dacf; --line-strong:#bcc6b6; --accent:#a86e18; --accent-soft:#efe2c8;
+    --good:#3f7a3f; --warn:#b8791f; --crit:#c0392b; --scope-frame:#e5e9df; --scope-ink:#20261f;
+  }
+  :root[data-theme="dark"] {
+    --bg:#0e120e; --panel:#161b16; --panel-2:#1d231c; --ink:#e7ece5; --muted:#93a08f;
+    --line:#2b332b; --line-strong:#3a443a; --accent:#e0a34a; --accent-soft:#39301c;
+    --good:#6fbf6f; --warn:#e0a34a; --crit:#e5705f; --scope-frame:#141a13; --scope-ink:#cdd6c8;
+  }
+
+  * { box-sizing:border-box; }
+  body {
+    margin:0; background:var(--bg); color:var(--ink); font-family:var(--sans);
+    line-height:1.5; -webkit-font-smoothing:antialiased;
+  }
+  .wrap { max-width:1120px; margin:0 auto; padding:28px 20px 60px; }
+
+  header { display:flex; flex-wrap:wrap; align-items:baseline; gap:10px 16px; margin-bottom:6px; }
+  h1 { font-size:1.42rem; margin:0; font-weight:650; letter-spacing:-.01em; text-wrap:balance; }
+  .sub { color:var(--muted); font-size:.9rem; }
+  .badge {
+    font-family:var(--mono); font-size:.72rem; letter-spacing:.02em; color:var(--good);
+    border:1px solid var(--line-strong); border-radius:999px; padding:3px 9px; background:var(--panel);
+    display:inline-flex; align-items:center; gap:6px;
+  }
+  .badge .dot { width:7px; height:7px; border-radius:50%; background:var(--good); }
+  .intro { color:var(--muted); font-size:.9rem; max-width:70ch; margin:10px 0 22px; }
+  .intro code { font-family:var(--mono); font-size:.82em; color:var(--ink); background:var(--panel); padding:1px 5px; border-radius:4px; }
+
+  .grid { display:grid; grid-template-columns: minmax(0,1.05fr) minmax(0,.95fr); gap:20px; align-items:start; }
+  @media (max-width:860px){ .grid { grid-template-columns:1fr; } }
+
+  .card { background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:16px; }
+  .card > h2 {
+    font-family:var(--mono); font-size:.72rem; font-weight:600; letter-spacing:.14em; text-transform:uppercase;
+    color:var(--muted); margin:0 0 12px;
+  }
+
+  /* --- scope --- */
+  .scope-frame { background:var(--scope-frame); border:1px solid var(--line-strong); border-radius:12px; padding:12px 12px 8px; }
+  .scope-grid { display:grid; grid-template-columns:auto 1fr; grid-template-rows:1fr auto; gap:6px 8px; }
+  .yaxis { grid-column:1; grid-row:1; writing-mode:vertical-rl; transform:rotate(180deg);
+    font-family:var(--mono); font-size:.68rem; letter-spacing:.12em; color:var(--muted);
+    display:flex; align-items:center; justify-content:center; text-transform:uppercase; }
+  .canvas-hold { grid-column:2; grid-row:1; position:relative; }
+  canvas { width:100%; aspect-ratio:1/1; display:block; border-radius:8px; border:1px solid var(--line-strong); cursor:crosshair; }
+  .xaxis { grid-column:2; grid-row:2; text-align:center;
+    font-family:var(--mono); font-size:.68rem; letter-spacing:.12em; color:var(--muted); text-transform:uppercase; }
+  .legend { display:flex; align-items:center; gap:10px; margin-top:12px; }
+  .legend .bar { height:11px; flex:1; border-radius:3px; border:1px solid var(--line-strong);
+    background:linear-gradient(90deg,#c1293f 0%,#cf5036 16%,#dd8a3a 27%,#b0a34a 39%,#4e9a4e 50%,#469696 66%,#3a83c0 80%,#3b3fa0 100%); }
+  .legend .lab { font-family:var(--mono); font-size:.66rem; color:var(--muted); }
+
+  /* --- console --- */
+  .op-groups { display:flex; flex-direction:column; gap:12px; }
+  .op-row { display:flex; flex-direction:column; gap:6px; }
+  .op-row .rl { font-family:var(--mono); font-size:.66rem; letter-spacing:.1em; text-transform:uppercase; color:var(--muted); }
+  .btns { display:flex; flex-wrap:wrap; gap:7px; }
+  button.op {
+    font-family:var(--sans); font-size:.86rem; color:var(--ink); background:var(--panel-2);
+    border:1px solid var(--line-strong); border-radius:9px; padding:7px 11px; cursor:pointer;
+    transition:border-color .12s, background .12s, transform .04s; display:inline-flex; align-items:center; gap:6px;
+  }
+  button.op .k { font-family:var(--mono); font-size:.74rem; color:var(--muted); }
+  button.op:hover { border-color:var(--accent); }
+  button.op:active { transform:translateY(1px); }
+  button.op.mat { background:var(--accent-soft); border-color:var(--accent); }
+  button.op.ghost { background:transparent; }
+  button.op:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
+
+  /* --- readouts --- */
+  .cluster { display:grid; grid-template-columns:repeat(3,1fr); gap:9px; margin-top:2px; }
+  .rd { background:var(--panel-2); border:1px solid var(--line); border-radius:10px; padding:9px 10px; }
+  .rd .l { font-family:var(--mono); font-size:.62rem; letter-spacing:.08em; text-transform:uppercase; color:var(--muted); }
+  .rd .v { font-family:var(--mono); font-size:1.02rem; font-weight:600; font-variant-numeric:tabular-nums; margin-top:2px; }
+  .rd.ph { grid-column:span 3; display:flex; align-items:baseline; justify-content:space-between; }
+  .rd.ph .v { font-size:1.9rem; }
+  .rd.ph .scale { font-family:var(--mono); font-size:.66rem; color:var(--muted); }
+
+  .chips { display:flex; flex-wrap:wrap; gap:7px; margin-top:11px; }
+  .chip { font-family:var(--mono); font-size:.72rem; padding:4px 9px; border-radius:999px; border:1px solid var(--line-strong);
+    background:var(--panel-2); color:var(--muted); display:inline-flex; align-items:center; gap:6px; }
+  .chip .d { width:7px; height:7px; border-radius:50%; background:var(--muted); }
+  .chip.on-good { color:var(--good); border-color:var(--good); } .chip.on-good .d{ background:var(--good); }
+  .chip.on-warn { color:var(--warn); border-color:var(--warn); } .chip.on-warn .d{ background:var(--warn); }
+  .chip.on-crit { color:var(--crit); border-color:var(--crit); } .chip.on-crit .d{ background:var(--crit); }
+
+  .note { margin-top:14px; border-top:1px dashed var(--line-strong); padding-top:12px; }
+  .note .head { display:flex; justify-content:space-between; align-items:baseline; }
+  .log { font-family:var(--mono); font-size:.74rem; color:var(--muted); max-height:96px; overflow-y:auto;
+    margin-top:8px; padding-right:4px; }
+  .log ol { margin:0; padding-left:22px; } .log li { margin:1px 0; }
+  .log .empty { color:var(--muted); font-style:italic; }
+  .produce { margin-top:12px; display:grid; grid-template-columns:1fr 1fr; gap:9px; }
+  .produce .field { display:flex; flex-direction:column; gap:3px; }
+  .produce label { font-family:var(--mono); font-size:.62rem; text-transform:uppercase; letter-spacing:.08em; color:var(--muted); }
+  .produce input { font-family:var(--mono); font-size:.86rem; padding:6px 8px; border-radius:8px; border:1px solid var(--line-strong);
+    background:var(--panel-2); color:var(--ink); width:100%; }
+  .produce .out { grid-column:span 2; font-family:var(--mono); font-size:.82rem; color:var(--ink);
+    background:var(--panel-2); border:1px solid var(--line); border-radius:8px; padding:8px 10px; }
+  .produce .out b { color:var(--accent); }
+
+  /* --- recipe panel --- */
+  .recipe-card { margin-top:20px; }
+  .recipe-flex { display:grid; grid-template-columns:1.1fr 1fr; gap:20px; }
+  @media (max-width:720px){ .recipe-flex { grid-template-columns:1fr; } }
+  .chain { font-family:var(--mono); font-size:.82rem; line-height:1.9; }
+  .chain .node { display:inline-flex; align-items:center; gap:8px; }
+  .chain .arrow { color:var(--muted); }
+  .tag { font-size:.64rem; padding:1px 6px; border-radius:5px; border:1px solid var(--line-strong); color:var(--muted); }
+  .tag.map { color:var(--accent); border-color:var(--accent); }
+  .tag.raw { color:var(--crit); border-color:var(--crit); }
+  .plan .l { font-family:var(--mono); font-size:.64rem; letter-spacing:.08em; text-transform:uppercase; color:var(--muted); margin:12px 0 4px; }
+  .plan .items { display:flex; flex-wrap:wrap; gap:6px; }
+  .plan .pill { font-family:var(--mono); font-size:.76rem; padding:3px 9px; border-radius:7px; background:var(--panel-2); border:1px solid var(--line-strong); }
+  .plan .pill.step { border-color:var(--accent); }
+  .plan .pill.raw { color:var(--crit); border-color:var(--crit); }
+  .plan .pill.tech { color:var(--accent); }
+  .owned { display:flex; align-items:center; gap:8px; margin-top:14px; font-size:.84rem; color:var(--muted); }
+  .owned input { width:15px; height:15px; accent-color:var(--accent); }
+
+  .foot { margin-top:26px; color:var(--muted); font-size:.8rem; max-width:74ch; }
+  .foot code { font-family:var(--mono); font-size:.82em; }
+  a.themetoggle { margin-left:auto; font-family:var(--mono); font-size:.72rem; color:var(--muted); cursor:pointer;
+    border:1px solid var(--line-strong); border-radius:999px; padding:3px 10px; background:var(--panel); user-select:none; }
+</style>
+
+<div class="wrap">
+  <header>
+    <h1>反応マップ — 実機プロトタイプ</h1>
+    <span class="badge"><span class="dot"></span>core / 70 tests green</span>
+    <span class="themetoggle" id="themeToggle" role="button" tabindex="0">◐ theme</span>
+  </header>
+  <p class="intro">
+    Godot の <code>core/reactions</code> と<strong>同じ式・定数</strong>をブラウザに移植したもの。操作は離散工程（1クリック=1ステップ）。
+    温度×濃度の平面を動かすと、<code>ph_model.gd</code> の連続 pH が等高線として引き直され、
+    領域到達・収率・暴走域・実験ノート・レシピ逆算まで実機で確認できます。
+  </p>
+
+  <div class="grid">
+    <!-- SCOPE -->
+    <section class="card">
+      <h2>反応マップ（温度 × 濃度 / pH 等高線）</h2>
+      <div class="scope-frame">
+        <div class="scope-grid">
+          <div class="yaxis">温度 →</div>
+          <div class="canvas-hold"><canvas id="scope"></canvas></div>
+          <div class="xaxis">濃度 →</div>
+        </div>
+        <div class="legend">
+          <span class="lab">pH 0</span>
+          <span class="bar"></span>
+          <span class="lab">14</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- CONSOLE -->
+    <section class="card">
+      <h2>操作コンソール</h2>
+      <div class="op-groups">
+        <div class="op-row">
+          <span class="rl">温度</span>
+          <div class="btns">
+            <button class="op" data-act="heat" data-amt="1">加熱 <span class="k">+1</span></button>
+            <button class="op" data-act="heat" data-amt="-1">冷却 <span class="k">−1</span></button>
+          </div>
+        </div>
+        <div class="op-row">
+          <span class="rl">濃度</span>
+          <div class="btns">
+            <button class="op" data-act="water" data-amt="1">加水 <span class="k">←</span></button>
+            <button class="op" data-act="distill" data-amt="1">蒸留 <span class="k">→ 収率↓</span></button>
+          </div>
+        </div>
+        <div class="op-row">
+          <span class="rl">中和（組成）</span>
+          <div class="btns">
+            <button class="op" data-act="acid" data-amt="0.5">酸 <span class="k">pH↓</span></button>
+            <button class="op" data-act="base" data-amt="0.5">塩基 <span class="k">pH↑</span></button>
+          </div>
+        </div>
+        <div class="op-row">
+          <span class="rl">素材投入</span>
+          <div class="btns">
+            <button class="op mat" data-mat="vitriol">緑礬</button>
+            <button class="op mat" data-mat="lime">石灰</button>
+            <button class="op mat" data-mat="water">水</button>
+            <button class="op mat" data-mat="sulfur">硫黄</button>
+            <button class="op ghost" id="reset">リセット</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="cluster" style="margin-top:14px">
+        <div class="rd ph">
+          <div><div class="l">pH</div><div class="v" id="v-ph">7.00</div></div>
+          <div class="scale" id="v-phlabel">中性</div>
+        </div>
+        <div class="rd"><div class="l">濃度 x</div><div class="v" id="v-conc">2.00</div></div>
+        <div class="rd"><div class="l">温度 y</div><div class="v" id="v-temp">2.00</div></div>
+        <div class="rd"><div class="l">net_acid</div><div class="v" id="v-net">0.00</div></div>
+        <div class="rd"><div class="l">収率</div><div class="v" id="v-yield">—</div></div>
+        <div class="rd"><div class="l">経路長</div><div class="v" id="v-path">0.0</div></div>
+        <div class="rd"><div class="l">設備損傷</div><div class="v" id="v-equip">0.0</div></div>
+      </div>
+
+      <div class="chips">
+        <span class="chip" id="c-region"><span class="d"></span>領域: —</span>
+        <span class="chip" id="c-target"><span class="d"></span>目標: 未到達</span>
+        <span class="chip" id="c-hazard"><span class="d"></span>暴走: 正常</span>
+      </div>
+
+      <div class="note">
+        <div class="head">
+          <span class="rl" style="font-family:var(--mono);font-size:.66rem;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)">実験ノート（操作列）</span>
+          <span class="rl" style="font-family:var(--mono);font-size:.7rem;color:var(--muted)" id="op-count">0 手</span>
+        </div>
+        <div class="log" id="log"><div class="empty">まだ操作していません。</div></div>
+        <div class="produce">
+          <div class="field"><label>投入量 g</label><input id="p-amt" type="number" value="100" min="0" step="10"></div>
+          <div class="field"><label>投入純度</label><input id="p-pur" type="number" value="0.9" min="0" max="1" step="0.05"></div>
+          <div class="out" id="p-out">委任量産: 目標未到達のため生産不可</div>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <!-- RECIPE -->
+  <section class="card recipe-card">
+    <h2>レシピ逆算（願い → 必要物質）</h2>
+    <div class="recipe-flex">
+      <div>
+        <div class="chain" id="chain"></div>
+        <div class="owned">
+          <input type="checkbox" id="own-acid">
+          <label for="own-acid">希硫酸を所持している（＝枝刈りされる）</label>
+        </div>
+      </div>
+      <div class="plan" id="plan"></div>
+    </div>
+  </section>
+
+  <p class="foot">
+    このプロトタイプは <code>core/reactions/ph_model.gd</code> / <code>reaction_sim.gd</code> / <code>reaction_region.gd</code> と
+    <code>core/crafting/recipe_book.gd</code> の式・定数を1:1で移植したものです。ロジックの正しさ自体は
+    <code>core/__tests__/run_tests.gd</code>（Godot 4.7 headless, 70 tests）で担保されています。
+  </p>
+</div>
+
+<script>
+// ===== core と同一の定数・式（faithful port） =====
+const BOUNDS = {x:0,y:0,w:10,h:10};
+const PH = { NEUTRAL:7.0, GAIN:2.0, TEMP_SHIFT:0.8 };
+const SIM = { PATH_COST:0.05, DISTILL_PEN:0.1, YIELD_EXP:1.5, GRAZE_MARGIN:1.0, GRAZE_PEN:0.4, DEEP_TEMP:0.7, EQUIP_DMG:0.5 };
+const START = {x:2, y:2};
+
+const REGIONS = [
+  { kind:'target', label:'希硫酸',  center:{x:2,y:6}, radius:1.2, product:'dilute_sulfuric_acid',      base_purity:0.7, ph:[0,3] },
+  { kind:'target', label:'濃硫酸',  center:{x:7,y:5}, radius:1.2, product:'concentrated_sulfuric_acid', base_purity:0.9, ph:[0,1] },
+  { kind:'hazard', label:'暴走域',  center:{x:8,y:9}, radius:1.5, product:'', base_purity:0, ph:null },
+];
+const MATERIALS = {
+  vitriol:{name:'緑礬', jump:{x:0.6,y:0.2}, mag:1.0, acidity: 1.0},
+  lime:   {name:'石灰', jump:{x:-0.2,y:0.0}, mag:1.0, acidity:-1.0},
+  water:  {name:'水',   jump:{x:-1.0,y:0.0}, mag:1.0, acidity: 0.0},
+  sulfur: {name:'硫黄', jump:{x:0.4,y:0.6}, mag:1.0, acidity: 0.0},
+};
+
+function clamp(v,a,b){ return Math.min(b,Math.max(a,v)); }
+function phCompute(net, c01, t01){
+  const c = clamp(c01,0,1), t = clamp(t01,0,1);
+  const a = net * c * PH.GAIN;
+  const neutral = PH.NEUTRAL - PH.TEMP_SHIFT * (t - 0.5);
+  return clamp(neutral - 7.0*Math.tanh(a), 0, 14);
+}
+
+class Sim {
+  constructor(){ this.reset(); }
+  reset(){
+    this.pos = {x:START.x, y:START.y};
+    this.net = 0; this.path = 0; this.batchLost=false; this.equip=0;
+    this.distillPen=0; this.hazardPen=0;
+    this.ops = []; this.trace = [{x:START.x,y:START.y}];
+  }
+  _clamp(p){ return {x:clamp(p.x,BOUNDS.x,BOUNDS.x+BOUNDS.w), y:clamp(p.y,BOUNDS.y,BOUNDS.y+BOUNDS.h)}; }
+  _move(t){
+    const c=this._clamp(t);
+    this.path += Math.hypot(c.x-this.pos.x, c.y-this.pos.y);
+    this.pos=c; this.trace.push({x:c.x,y:c.y}); this._hazards();
+  }
+  heat(a){ this.ops.push(`加熱 ${a>0?'+':''}${a}`); this._move({x:this.pos.x, y:this.pos.y+a}); }
+  water(a){ this.ops.push(`加水 ${a}`); this._move({x:this.pos.x-a, y:this.pos.y}); }
+  distill(a){ this.ops.push(`蒸留 ${a}`); this._move({x:this.pos.x+a, y:this.pos.y}); this.distillPen += Math.abs(a)*SIM.DISTILL_PEN; }
+  acid(a){ this.ops.push(`酸 +${a}`); this.net += Math.abs(a); }
+  base(a){ this.ops.push(`塩基 +${a}`); this.net -= Math.abs(a); }
+  material(id){ const m=MATERIALS[id]; this.ops.push(`投入 ${m.name}`); this._move({x:this.pos.x+m.jump.x*m.mag, y:this.pos.y+m.jump.y*m.mag}); this.net += m.acidity*m.mag; }
+  conc01(){ return clamp((this.pos.x-BOUNDS.x)/BOUNDS.w,0,1); }
+  temp01(){ return clamp((this.pos.y-BOUNDS.y)/BOUNDS.h,0,1); }
+  ph(){ return phCompute(this.net, this.conc01(), this.temp01()); }
+  currentRegion(){ for(const r of REGIONS){ if(Math.hypot(this.pos.x-r.center.x,this.pos.y-r.center.y)<=r.radius) return r; } return null; }
+  reachedTarget(){ const p=this.ph(); for(const r of REGIONS){ if(r.kind!=='target') continue;
+      const inside = Math.hypot(this.pos.x-r.center.x,this.pos.y-r.center.y)<=r.radius;
+      const okph = !r.ph || (p>=r.ph[0] && p<=r.ph[1]);
+      if(inside && okph) return r; } return null; }
+  _hazards(){
+    for(const r of REGIONS){ if(r.kind!=='hazard') continue;
+      const d=Math.hypot(this.pos.x-r.center.x,this.pos.y-r.center.y);
+      if(d<=r.radius){ this.batchLost=true; this.hazardPen=1.0; if(this.temp01()>=SIM.DEEP_TEMP) this.equip=Math.max(this.equip,SIM.EQUIP_DMG); }
+      else if(d<=r.radius+SIM.GRAZE_MARGIN){ const cl=1.0-(d-r.radius)/SIM.GRAZE_MARGIN; this.hazardPen=Math.max(this.hazardPen,SIM.GRAZE_PEN*cl); }
+    }
+  }
+  yieldRatio(){
+    if(this.batchLost) return 0;
+    let base; const reg=this.currentRegion();
+    if(reg && reg.kind==='target'){
+      const opt=Math.hypot(START.x-reg.center.x,START.y-reg.center.y);
+      if(opt>0){ const act=Math.max(this.path,opt); base=Math.pow(clamp(opt/act,0,1),SIM.YIELD_EXP); } else base=1;
+    } else { base = 1.0/(1.0+this.path*SIM.PATH_COST); }
+    return clamp(base-this.distillPen-this.hazardPen,0,1);
+  }
+}
+
+// ===== recipe resolver（recipe_book.gd と同一アルゴリズム） =====
+const RECIPES = {
+  dilute_sulfuric_acid:{name:'希硫酸', inputs:['vitriol'], map:'acid_base', tech:'glass_flask'},
+  sulfa_drug:{name:'サルファ剤', inputs:['dilute_sulfuric_acid'], map:'', tech:'synthesis_bench'},
+  cure:{name:'治療薬', inputs:['sulfa_drug'], map:'', tech:''},
+};
+const NAMES = { vitriol:'緑礬', dilute_sulfuric_acid:'希硫酸', sulfa_drug:'サルファ剤', cure:'治療薬' };
+function resolve(goal, owned){
+  const steps=[], raw=[], techs=[], state={};
+  function expand(id){
+    if(owned.includes(id)) return true;
+    if(state[id]==='done') return true;
+    if(state[id]==='visiting') return false;
+    const rc=RECIPES[id];
+    if(!rc){ if(!raw.includes(id)) raw.push(id); state[id]='done'; return true; }
+    state[id]='visiting'; let ok=true;
+    for(const i of rc.inputs){ if(!expand(i)) ok=false; }
+    if(rc.tech && !techs.includes(rc.tech)) techs.push(rc.tech);
+    state[id]='done'; if(!steps.includes(id)) steps.push(id); return ok;
+  }
+  const ok=expand(goal); return {ok, steps, raw_needed:raw, tech_needed:techs};
+}
+
+// ===== litmus color =====
+const STOPS=[[0,193,41,63],[2,201,80,54],[3.5,221,138,58],[5,176,163,74],[7,78,154,78],[9,70,150,150],[11,58,131,192],[14,59,63,160]];
+function phColor(p){
+  for(let i=0;i<STOPS.length-1;i++){ const a=STOPS[i],b=STOPS[i+1];
+    if(p<=b[0]){ const f=(p-a[0])/(b[0]-a[0]);
+      return [a[1]+(b[1]-a[1])*f, a[2]+(b[2]-a[2])*f, a[3]+(b[3]-a[3])*f]; } }
+  return [STOPS[STOPS.length-1][1],STOPS[STOPS.length-1][2],STOPS[STOPS.length-1][3]];
+}
+
+// ===== render =====
+const sim=new Sim();
+const cv=document.getElementById('scope'), ctx=cv.getContext('2d');
+const BW=170, buf=document.createElement('canvas'); buf.width=BW; buf.height=BW; const bctx=buf.getContext('2d');
+function mapToScreen(x,y,W,H){ return {sx:(x/BOUNDS.w)*W, sy:(1-y/BOUNDS.h)*H}; }
+
+function drawField(){
+  const img=bctx.createImageData(BW,BW), d=img.data;
+  const net=sim.net;
+  for(let j=0;j<BW;j++){ const t01=1-j/(BW-1);
+    for(let i=0;i<BW;i++){ const c01=i/(BW-1);
+      const p=phCompute(net,c01,t01); const [r,g,b]=phColor(p);
+      const k=(j*BW+i)*4; d[k]=r; d[k+1]=g; d[k+2]=b; d[k+3]=205; } }
+  bctx.putImageData(img,0,0);
+}
+
+function render(){
+  const dpr=Math.min(window.devicePixelRatio||1,2);
+  const cssW=cv.clientWidth, cssH=cv.clientWidth; // square
+  cv.width=cssW*dpr; cv.height=cssH*dpr; ctx.setTransform(dpr,0,0,dpr,0,0);
+  const W=cssW, H=cssH;
+  const styles=getComputedStyle(document.documentElement);
+  const scopeInk=styles.getPropertyValue('--scope-ink').trim();
+  const accent=styles.getPropertyValue('--accent').trim();
+  const crit=styles.getPropertyValue('--crit').trim();
+
+  // pH field
+  drawField();
+  ctx.imageSmoothingEnabled=true;
+  ctx.drawImage(buf,0,0,W,H);
+
+  // iso-pH contour lines (analytic: solve pH(c,t)=L for c)
+  const net=sim.net;
+  if(Math.abs(net)>1e-4){
+    ctx.lineWidth=1; ctx.font='10px ui-monospace,monospace'; ctx.textBaseline='top';
+    for(let L=1;L<=13;L++){
+      let started=false, labelPt=null;
+      ctx.beginPath();
+      for(let s=0;s<=100;s++){ const t=(s/100)*BOUNDS.h;
+        const neutral=PH.NEUTRAL-PH.TEMP_SHIFT*(t/BOUNDS.h-0.5);
+        const val=(neutral-L)/7;
+        if(Math.abs(val)>=1) { started=false; continue; }
+        const arg=0.5*Math.log((1+val)/(1-val)); // atanh
+        const c=5*arg/net;
+        if(c<0||c>BOUNDS.w){ started=false; continue; }
+        const {sx,sy}=mapToScreen(c,t,W,H);
+        if(!started){ ctx.moveTo(sx,sy); started=true; } else ctx.lineTo(sx,sy);
+        if(!labelPt||sy<labelPt.sy) labelPt={sx,sy};
+      }
+      ctx.strokeStyle='rgba(20,24,20,0.28)'; ctx.stroke();
+      if(labelPt && L%2===0){ ctx.fillStyle='rgba(20,24,20,0.55)'; ctx.fillText(String(L), labelPt.sx+2, labelPt.sy+1); }
+    }
+  }
+
+  // regions
+  for(const r of REGIONS){
+    const {sx,sy}=mapToScreen(r.center.x,r.center.y,W,H);
+    const rad=(r.radius/BOUNDS.w)*W;
+    ctx.beginPath(); ctx.arc(sx,sy,rad,0,Math.PI*2);
+    if(r.kind==='hazard'){ ctx.fillStyle='rgba(192,57,43,0.18)'; ctx.fill();
+      ctx.setLineDash([5,4]); ctx.lineWidth=1.5; ctx.strokeStyle=crit; ctx.stroke(); ctx.setLineDash([]); }
+    else { ctx.lineWidth=2; ctx.strokeStyle=accent; ctx.stroke();
+      ctx.beginPath(); ctx.arc(sx,sy,rad,0,Math.PI*2); ctx.setLineDash([2,3]); ctx.strokeStyle='rgba(255,255,255,0.5)'; ctx.lineWidth=1; ctx.stroke(); ctx.setLineDash([]); }
+    ctx.fillStyle=scopeInk; ctx.font='600 11px ui-monospace,monospace'; ctx.textBaseline='middle'; ctx.textAlign='center';
+    ctx.fillText(r.label, sx, sy);
+    if(r.ph){ ctx.font='9px ui-monospace,monospace'; ctx.fillStyle='rgba(0,0,0,0.55)';
+      ctx.fillText('pH '+r.ph[0]+'–'+r.ph[1], sx, sy+13); }
+    ctx.textAlign='left';
+  }
+
+  // path trace
+  if(sim.trace.length>1){
+    ctx.beginPath();
+    sim.trace.forEach((p,i)=>{ const {sx,sy}=mapToScreen(p.x,p.y,W,H); i?ctx.lineTo(sx,sy):ctx.moveTo(sx,sy); });
+    ctx.strokeStyle='rgba(20,24,20,0.5)'; ctx.lineWidth=1.5; ctx.stroke();
+  }
+  // start marker
+  { const {sx,sy}=mapToScreen(START.x,START.y,W,H); ctx.beginPath(); ctx.arc(sx,sy,3,0,Math.PI*2); ctx.fillStyle='rgba(20,24,20,0.4)'; ctx.fill(); }
+  // current marker
+  { const {sx,sy}=mapToScreen(sim.pos.x,sim.pos.y,W,H);
+    ctx.beginPath(); ctx.arc(sx,sy,7,0,Math.PI*2); ctx.fillStyle=accent; ctx.fill();
+    ctx.beginPath(); ctx.arc(sx,sy,7,0,Math.PI*2); ctx.lineWidth=2; ctx.strokeStyle='#fff'; ctx.stroke(); }
+
+  updateReadouts();
+}
+
+const $=id=>document.getElementById(id);
+function phWord(p){ if(p<3) return '強酸性'; if(p<6.5) return '酸性'; if(p<=7.5) return '中性'; if(p<11) return '塩基性'; return '強塩基性'; }
+function updateReadouts(){
+  const p=sim.ph(), y=sim.yieldRatio(), reg=sim.currentRegion(), tgt=sim.reachedTarget();
+  const [r,g,b]=phColor(p);
+  $('v-ph').textContent=p.toFixed(2); $('v-ph').style.color=`rgb(${r|0},${g|0},${b|0})`;
+  $('v-phlabel').textContent=phWord(p);
+  $('v-conc').textContent=sim.pos.x.toFixed(2);
+  $('v-temp').textContent=sim.pos.y.toFixed(2);
+  $('v-net').textContent=sim.net.toFixed(2);
+  $('v-yield').textContent = tgt ? (y*100).toFixed(0)+'%' : (sim.batchLost?'0%':'—');
+  $('v-path').textContent=sim.path.toFixed(1);
+  $('v-equip').textContent=sim.equip.toFixed(1);
+
+  const cReg=$('c-region'); cReg.querySelector('.d')||0;
+  cReg.innerHTML='<span class="d"></span>領域: '+(reg?reg.label:'—');
+  cReg.className='chip'+(reg?(reg.kind==='hazard'?' on-crit':' on-good'):'');
+
+  const cT=$('c-target');
+  cT.innerHTML='<span class="d"></span>目標: '+(tgt?tgt.label+' 到達':'未到達');
+  cT.className='chip'+(tgt?' on-good':'');
+
+  const cH=$('c-hazard');
+  let hs='正常', cls='';
+  if(sim.batchLost){ hs='バッチ全損'; cls=' on-crit'; }
+  else if(sim.hazardPen>0){ hs='縁をかすめた'; cls=' on-warn'; }
+  cH.innerHTML='<span class="d"></span>暴走: '+hs; cH.className='chip'+cls;
+
+  // note log
+  $('op-count').textContent=sim.ops.length+' 手';
+  const log=$('log');
+  if(sim.ops.length===0) log.innerHTML='<div class="empty">まだ操作していません。</div>';
+  else log.innerHTML='<ol>'+sim.ops.map(o=>'<li>'+o+'</li>').join('')+'</ol>';
+
+  // produce (note.produce)
+  const amt=parseFloat($('p-amt').value)||0, pur=clamp(parseFloat($('p-pur').value)||0,0,1);
+  const out=$('p-out');
+  if(tgt){ const oa=amt*y, op=clamp(tgt.base_purity*pur,0,1);
+    out.innerHTML=`委任量産 → <b>${tgt.label}</b> ${oa.toFixed(1)} g / 純度 ${(op*100).toFixed(0)}% <span style="color:var(--muted)">（量=投入×収率 ${(y*100).toFixed(0)}%、純度=base ${tgt.base_purity}×投入 ${pur}）</span>`;
+  } else out.textContent='委任量産: 目標未到達のため生産不可';
+}
+
+// ===== recipe panel =====
+function renderRecipe(){
+  const owned = $('own-acid').checked ? ['dilute_sulfuric_acid'] : [];
+  const chain=$('chain');
+  chain.innerHTML =
+    `<div class="node"><span>治療薬</span><span class="arrow">←</span> <span>サルファ剤</span> <span class="tag">synthesis_bench</span></div><br>`+
+    `<div class="node"><span class="arrow" style="opacity:0">←</span><span class="arrow">←</span> <span>希硫酸</span> <span class="tag map">acid_base</span> <span class="tag">glass_flask</span></div><br>`+
+    `<div class="node"><span class="arrow" style="opacity:0">←←</span><span class="arrow">←</span> <span>緑礬</span> <span class="tag raw">採取</span></div>`;
+  const plan=resolve('cure', owned);
+  const el=$('plan');
+  const pill=(id,cls)=>`<span class="pill ${cls}">${NAMES[id]||id}</span>`;
+  el.innerHTML =
+    `<div class="l">工程順（依存が先）</div><div class="items">${plan.steps.map(s=>pill(s,'step')).join('')||'<span class="pill">—</span>'}</div>`+
+    `<div class="l">要採取の原料</div><div class="items">${plan.raw_needed.map(s=>pill(s,'raw')).join('')||'<span class="pill">なし</span>'}</div>`+
+    `<div class="l">必要設備</div><div class="items">${plan.tech_needed.map(s=>`<span class="pill tech">${s}</span>`).join('')||'<span class="pill">なし</span>'}</div>`+
+    `<div class="l">解決可能</div><div class="items"><span class="pill" style="border-color:var(--good);color:var(--good)">ok = ${plan.ok}</span></div>`;
+}
+
+// ===== wire up =====
+document.querySelectorAll('button.op[data-act]').forEach(b=>b.addEventListener('click',()=>{
+  const act=b.dataset.act, amt=parseFloat(b.dataset.amt);
+  sim[act](amt); render();
+}));
+document.querySelectorAll('button.op[data-mat]').forEach(b=>b.addEventListener('click',()=>{ sim.material(b.dataset.mat); render(); }));
+$('reset').addEventListener('click',()=>{ sim.reset(); render(); });
+$('p-amt').addEventListener('input',updateReadouts);
+$('p-pur').addEventListener('input',updateReadouts);
+$('own-acid').addEventListener('change',renderRecipe);
+
+// theme toggle
+$('themeToggle').addEventListener('click',()=>{
+  const cur=document.documentElement.getAttribute('data-theme');
+  const next = cur==='dark'?'light':(cur==='light'?'dark':(matchMedia('(prefers-color-scheme: dark)').matches?'light':'dark'));
+  document.documentElement.setAttribute('data-theme',next); render();
+});
+window.addEventListener('resize',render);
+renderRecipe(); render();
+</script>
