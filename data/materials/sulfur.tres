@@ -1,0 +1,11 @@
+[gd_resource type="Resource" script_class="MaterialDef" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://core/materials/material_def.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = &"sulfur"
+display_name = "硫黄"
+description = "火山地帯で採れる。酸系マップでは右上（高温・高濃度）へ跳躍する。"
+jump_vector = Vector2(0.4, 0.6)
+jump_magnitude = 1.0

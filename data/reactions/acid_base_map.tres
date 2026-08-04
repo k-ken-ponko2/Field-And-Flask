@@ -1,0 +1,31 @@
+[gd_resource type="Resource" script_class="ReactionMap" load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://core/reactions/reaction_map.gd" id="1"]
+[ext_resource type="Script" path="res://core/reactions/reaction_region.gd" id="2"]
+
+[sub_resource type="Resource" id="region_target"]
+script = ExtResource("2")
+kind = 0
+label = "希硫酸"
+center = Vector2(2, 6)
+radius = 1.2
+product_id = &"dilute_sulfuric_acid"
+base_purity = 0.7
+
+[sub_resource type="Resource" id="region_hazard"]
+script = ExtResource("2")
+kind = 1
+label = "暴走域（有毒ガス）"
+center = Vector2(8, 9)
+radius = 1.5
+product_id = &""
+base_purity = 0.0
+
+[resource]
+script = ExtResource("1")
+id = &"acid_base"
+display_name = "酸・塩基系マップ"
+axis_x = "濃度"
+axis_y = "温度"
+bounds = Rect2(0, 0, 10, 10)
+regions = [SubResource("region_target"), SubResource("region_hazard")]

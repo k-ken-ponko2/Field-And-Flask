@@ -1,0 +1,11 @@
+[gd_resource type="Resource" script_class="MaterialDef" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://core/materials/material_def.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = &"water"
+display_name = "水"
+description = "どこでも手に入る。加水と同じく濃度を下げる方向（左）へ動かす。"
+jump_vector = Vector2(-1.0, 0.0)
+jump_magnitude = 1.0

@@ -1,0 +1,16 @@
+; Field & Flask — Godot 4.7 プロジェクト設定
+; エンジン起動時にこのファイルが編集・再生成されることがあります。
+
+config_version=5
+
+[application]
+
+config/name="Field & Flask"
+config/description="石器時代同然の世界で素材を探し、化学の力で文明の道具を取り戻す科学クラフトゲーム。"
+run/main_scene="res://presentation/main.tscn"
+config/features=PackedStringArray("4.7")
+
+[display]
+
+window/size/viewport_width=1280
+window/size/viewport_height=720

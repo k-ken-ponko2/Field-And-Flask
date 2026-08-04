@@ -1,0 +1,7 @@
+* text=auto eol=lf
+
+*.gd    text
+*.tres  text
+*.tscn  text
+*.godot text
+*.md    text
