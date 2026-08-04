@@ -1,0 +1,311 @@
+<title>クラフトUI設計案 — 土器と石器 / Field &amp; Flask</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  :root{
+    --bg:#e9ede7; --panel:#f5f8f2; --panel-2:#fdfefb; --ink:#1b211c; --muted:#5d675e;
+    --line:#d3dacf; --line-strong:#bcc6b6; --accent:#a86e18; --accent-soft:#efe2c8;
+    --good:#3f7a3f; --warn:#b8791f; --crit:#c0392b;
+    --clay:#b5623a; --clay-soft:#e7cbb6; --stone:#6b7178; --stone-soft:#c9cdd0;
+    --mono:ui-monospace,"SF Mono","JetBrains Mono",Menlo,monospace;
+    --sans:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  }
+  @media (prefers-color-scheme:dark){:root{
+    --bg:#0e120e; --panel:#161b16; --panel-2:#1d231c; --ink:#e7ece5; --muted:#93a08f;
+    --line:#2b332b; --line-strong:#3a443a; --accent:#e0a34a; --accent-soft:#39301c;
+    --good:#6fbf6f; --warn:#e0a34a; --crit:#e5705f;
+    --clay:#d3854f; --clay-soft:#3a291d; --stone:#9aa1a8; --stone-soft:#262b2f;
+  }}
+  :root[data-theme="light"]{
+    --bg:#e9ede7; --panel:#f5f8f2; --panel-2:#fdfefb; --ink:#1b211c; --muted:#5d675e;
+    --line:#d3dacf; --line-strong:#bcc6b6; --accent:#a86e18; --accent-soft:#efe2c8;
+    --good:#3f7a3f; --warn:#b8791f; --crit:#c0392b;
+    --clay:#b5623a; --clay-soft:#e7cbb6; --stone:#6b7178; --stone-soft:#c9cdd0;
+  }
+  :root[data-theme="dark"]{
+    --bg:#0e120e; --panel:#161b16; --panel-2:#1d231c; --ink:#e7ece5; --muted:#93a08f;
+    --line:#2b332b; --line-strong:#3a443a; --accent:#e0a34a; --accent-soft:#39301c;
+    --good:#6fbf6f; --warn:#e0a34a; --crit:#e5705f;
+    --clay:#d3854f; --clay-soft:#3a291d; --stone:#9aa1a8; --stone-soft:#262b2f;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);line-height:1.55;-webkit-font-smoothing:antialiased;}
+  .wrap{max-width:1080px;margin:0 auto;padding:30px 20px 70px;}
+  header{display:flex;flex-wrap:wrap;align-items:baseline;gap:10px 16px;}
+  h1{font-size:1.5rem;margin:0;font-weight:650;letter-spacing:-.01em;text-wrap:balance;}
+  .eyebrow{font-family:var(--mono);font-size:.72rem;letter-spacing:.16em;text-transform:uppercase;color:var(--accent);}
+  .lead{color:var(--muted);font-size:.95rem;max-width:74ch;margin:12px 0 28px;}
+  .themetoggle{margin-left:auto;font-family:var(--mono);font-size:.72rem;color:var(--muted);cursor:pointer;border:1px solid var(--line-strong);border-radius:999px;padding:3px 10px;background:var(--panel);user-select:none;}
+  h2{font-size:1.14rem;margin:0 0 4px;display:flex;align-items:center;gap:10px;}
+  h2 .num{font-family:var(--mono);font-size:.8rem;color:var(--accent);border:1px solid var(--accent);border-radius:6px;padding:1px 7px;}
+  .section{margin-top:38px;}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:20px;}
+  .muted{color:var(--muted);font-size:.9rem;}
+
+  /* archetype table */
+  table{width:100%;border-collapse:collapse;font-size:.9rem;margin-top:14px;}
+  th,td{text-align:left;padding:9px 10px;border-bottom:1px solid var(--line);vertical-align:top;}
+  th{font-family:var(--mono);font-size:.68rem;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-weight:600;}
+  td .k{font-family:var(--mono);font-weight:600;color:var(--ink);}
+  .pill{display:inline-block;font-family:var(--mono);font-size:.7rem;padding:2px 8px;border-radius:999px;border:1px solid var(--line-strong);color:var(--muted);}
+  .pill.done{color:var(--good);border-color:var(--good);}
+  .pill.todo{color:var(--warn);border-color:var(--warn);}
+
+  /* process chain */
+  .chain{display:flex;flex-wrap:wrap;align-items:stretch;gap:0;margin:6px 0 4px;}
+  .step{position:relative;flex:1 1 0;min-width:96px;background:var(--panel-2);border:1px solid var(--line-strong);border-radius:10px;padding:10px 10px 12px;margin-right:16px;}
+  .step:last-child{margin-right:0;}
+  .step::after{content:"→";position:absolute;right:-14px;top:50%;transform:translateY(-50%);color:var(--muted);font-size:.9rem;}
+  .step:last-child::after{content:"";}
+  .step .t{font-weight:600;font-size:.92rem;}
+  .step .s{font-family:var(--mono);font-size:.68rem;color:var(--muted);letter-spacing:.04em;margin-top:2px;}
+  .step.hot{border-color:var(--accent);background:var(--accent-soft);}
+  .step .arche{position:absolute;top:-9px;left:10px;font-family:var(--mono);font-size:.6rem;background:var(--accent);color:#fff;padding:1px 6px;border-radius:5px;letter-spacing:.06em;}
+
+  .mock{display:grid;grid-template-columns:minmax(0,1fr) 250px;gap:20px;margin-top:18px;align-items:start;}
+  @media (max-width:760px){.mock{grid-template-columns:1fr;}}
+  .scope{background:#141a13;border:1px solid var(--line-strong);border-radius:12px;padding:12px;}
+  .scope-lab{display:flex;justify-content:space-between;font-family:var(--mono);font-size:.66rem;color:#cdd6c8;letter-spacing:.1em;text-transform:uppercase;margin-top:8px;}
+  canvas{width:100%;display:block;border-radius:8px;}
+  .ann{font-size:.86rem;}
+  .ann h4{font-family:var(--mono);font-size:.66rem;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin:0 0 8px;}
+  .ann ul{margin:0;padding-left:16px;} .ann li{margin:5px 0;}
+  .dot{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:5px;vertical-align:middle;}
+  .controls{display:flex;flex-wrap:wrap;gap:7px;margin-top:12px;}
+  .btn{font-family:var(--sans);font-size:.82rem;color:var(--ink);background:var(--panel-2);border:1px solid var(--line-strong);border-radius:8px;padding:6px 11px;cursor:pointer;}
+  .btn:hover{border-color:var(--accent);}
+  .btn.active{background:var(--accent-soft);border-color:var(--accent);}
+
+  .forms{display:flex;gap:8px;margin-top:6px;flex-wrap:wrap;}
+  .form{flex:1;min-width:80px;text-align:center;background:var(--panel-2);border:1px solid var(--line-strong);border-radius:10px;padding:10px 6px;font-size:.82rem;}
+  .form .cap{font-family:var(--mono);font-size:.66rem;color:var(--muted);margin-top:3px;}
+
+  .risk{height:12px;border-radius:6px;background:linear-gradient(90deg,var(--good),var(--warn),var(--crit));position:relative;margin-top:6px;}
+  .risk .mk{position:absolute;top:-3px;width:3px;height:18px;background:var(--ink);border-radius:2px;}
+
+  .decide{background:var(--accent-soft);border:1px solid var(--accent);border-radius:14px;padding:20px;}
+  .decide h2{color:var(--ink);}
+  .q{margin:14px 0;} .q .ql{font-family:var(--mono);font-size:.72rem;color:var(--accent);letter-spacing:.05em;}
+  .q .qt{font-weight:600;margin-top:2px;} .q .qo{font-size:.9rem;color:var(--muted);margin-top:3px;}
+  .foot{margin-top:30px;color:var(--muted);font-size:.82rem;}
+  code{font-family:var(--mono);font-size:.85em;background:var(--panel);padding:1px 5px;border-radius:4px;}
+</style>
+
+<div class="wrap">
+  <header>
+    <div>
+      <div class="eyebrow">Field &amp; Flask · Crafting UI</div>
+      <h1>クラフトUI設計案 — 土器と石器</h1>
+    </div>
+    <span class="themetoggle" id="tt" role="button" tabindex="0">◐ theme</span>
+  </header>
+  <p class="lead">
+    多数の実工程（採取・精製・成形・接合・熱処理…）を、そのまま個別ミニゲーム化すると破綻する。
+    Potion Craft の手触り（空間的・直接操作・目標領域）を保ちつつ、工程の<strong>性質</strong>で
+    <strong>数種類のUI原型</strong>に畳む。土器＝「化学＋熱処理」系、石器＝「賦形」系で、必要な原型がはっきり分かれる。
+  </p>
+
+  <!-- archetypes -->
+  <div class="section">
+    <h2><span class="num">0</span>UIの原型に畳む</h2>
+    <div class="card">
+      <table>
+        <tr><th>原型</th><th>担当する工程</th><th>操作の核</th><th>状態</th></tr>
+        <tr><td><span class="k">A 状態空間マップ</span></td><td>精製・製錬・合成・焼成・熱処理・調合</td><td>温度×濃度 等の平面を目標領域へ navigate</td><td><span class="pill done">実装済</span></td></tr>
+        <tr><td><span class="k">B 工程チェーン</span></td><td>材料前処理（粉砕→篩分け→乾燥→造粒）</td><td>素材の属性が左→右へ流れる</td><td><span class="pill todo">未</span></td></tr>
+        <tr><td><span class="k">C 直接賦形</span></td><td>鋳造・鍛造・プレス・剥離・研削</td><td>形そのものを直接いじる（削る/叩く）</td><td><span class="pill todo">未</span></td></tr>
+        <tr><td><span class="k">D 接合・組立</span></td><td>溶接・ろう付け・締結・接着</td><td>部品を繋ぐ</td><td><span class="pill todo">未</span></td></tr>
+      </table>
+      <p class="muted" style="margin:12px 0 0">「化学」系はほぼ A に落ちる（＝反応マップで実装済）。「形」系は C で、新しい操作が要る。土器と石器はこの差を示す。</p>
+    </div>
+  </div>
+
+  <!-- 土器 -->
+  <div class="section">
+    <h2><span class="num">1</span>土器 — 「工程チェーン(B) ＋ 焼成マップ(A)」</h2>
+    <div class="card">
+      <div class="chain">
+        <div class="step"><span class="arche">B</span><div class="t">粘土採取</div><div class="s">採取 / 材料同定</div></div>
+        <div class="step"><span class="arche">B</span><div class="t">水簸(すいひ)</div><div class="s">精製 / 分級</div></div>
+        <div class="step"><span class="arche">B</span><div class="t">混練</div><div class="s">混合 / 可塑性↑</div></div>
+        <div class="step"><span class="arche">C</span><div class="t">成形</div><div class="s">賦形(軽) / 形選択</div></div>
+        <div class="step"><span class="arche">B</span><div class="t">乾燥・養生</div><div class="s">水分↓</div></div>
+        <div class="step hot"><span class="arche">A</span><div class="t">焼成 ★</div><div class="s">状態マップ(ヤマ場)</div></div>
+      </div>
+      <p class="muted" style="margin:14px 0 0">背骨は<strong>工程チェーン(B)</strong>。属性（可塑性・水分・粒度）がノードを流れる。ヤマ場の<strong>焼成だけ状態マップ(A)</strong>を入れ子にする＝反応マップのエンジンを軸だけ差し替えて流用できる。</p>
+
+      <div class="mock">
+        <div class="scope">
+          <canvas id="kiln" width="640" height="440"></canvas>
+          <div class="scope-lab"><span>時間 →</span><span>焼成マップ：温度 × 時間</span></div>
+        </div>
+        <div class="ann">
+          <h4>焼成マップ (A) の狙い</h4>
+          <ul>
+            <li><span class="dot" style="background:#6bbf5a"></span><b>素焼き</b>＝目標領域（十分な温度×時間）</li>
+            <li><span class="dot" style="background:#c0392b"></span><b>ひび割れ</b>＝暴走域：生乾きを急加熱すると突入（＝反応マップの hazard と同型）</li>
+            <li><span class="dot" style="background:#e0a34a"></span><b>熔け・過焼</b>＝高温すぎ</li>
+            <li><span class="dot" style="background:#8a8f86"></span>低温・短時間は<b>生焼け</b>で未達</li>
+          </ul>
+          <div class="controls">
+            <button class="btn active" data-fire="slow">ゆっくり昇温</button>
+            <button class="btn" data-fire="fast">急加熱</button>
+          </div>
+          <p class="muted" id="kiln-result" style="margin-top:8px">→ 乾燥→予熱→本焼と時間をかけて素焼き領域へ。収率＝経路効率は反応マップと同じ。</p>
+
+          <h4 style="margin-top:16px">成形 (C・軽量版)</h4>
+          <div class="forms">
+            <div class="form">壺<div class="cap">液体貯蔵</div></div>
+            <div class="form">皿<div class="cap">受け皿</div></div>
+            <div class="form">坩堝<div class="cap">高温反応の器</div></div>
+          </div>
+          <p class="muted" style="margin-top:6px">形は用途を決めるだけの軽い選択。ここでは深い賦形UIは要らない。</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 石器 -->
+  <div class="section">
+    <h2><span class="num">2</span>石器 — 「直接賦形(C)：剥離(打製)」</h2>
+    <div class="card">
+      <div class="chain">
+        <div class="step"><span class="arche">B</span><div class="t">石材採取</div><div class="s">採取</div></div>
+        <div class="step"><span class="arche">B</span><div class="t">材料同定</div><div class="s">黒曜石◎ / 燧石○ / 砂岩△</div></div>
+        <div class="step hot"><span class="arche">C</span><div class="t">打製(剥離) ★</div><div class="s">賦形(ヤマ場)</div></div>
+        <div class="step hot"><span class="arche">C</span><div class="t">押圧剥離</div><div class="s">刃付け(微調整)</div></div>
+        <div class="step"><span class="arche">C</span><div class="t">研磨(磨製なら)</div><div class="s">研削 / なぞる</div></div>
+      </div>
+      <p class="muted" style="margin:14px 0 0">こちらは<strong>状態マップではない</strong>。石核を<strong>直接いじって形を作る</strong>賦形(C)が核。Potion Craft の「直接操作」を“空間ナビ”ではなく“造形”に振る。</p>
+
+      <div class="mock">
+        <div class="scope" style="background:#20242a">
+          <svg id="knap" viewBox="0 0 640 440" width="100%" style="display:block;border-radius:8px"></svg>
+          <div class="scope-lab" style="color:#c9cdd0"><span>石核をクリックで打点選択</span><span>剥離(ナッピング)UI</span></div>
+        </div>
+        <div class="ann">
+          <h4>剥離UI (C) の狙い</h4>
+          <ul>
+            <li><span class="dot" style="background:#c9cdd0"></span><b>石核</b>を表示。薄く<b>目標シルエット</b>（鏃/ナイフ/斧）を重ねる</li>
+            <li>打点と<b>打撃角度</b>を選ぶ→フレークが剥がれ形が変わる（除去加工＝subtractive）</li>
+            <li>良い角度＝大きく整形／悪い角度＝<b>破断・失敗</b>（素材ロス＝hazard 相当）</li>
+            <li><b>材料同定</b>の質が成功率・剥がれ方に効く（黒曜石は綺麗に、砂岩は砕けやすい）</li>
+          </ul>
+          <h4 style="margin-top:14px">破損リスク</h4>
+          <div class="risk"><span class="mk" id="riskmk" style="left:32%"></span></div>
+          <div class="controls">
+            <button class="btn active" data-strike="good">浅い角度で打つ</button>
+            <button class="btn" data-strike="bad">深く打ち込む</button>
+          </div>
+          <p class="muted" id="knap-result" style="margin-top:8px">→ 稜線に沿って浅く打つと長いフレークが取れ、目標形に近づく。</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- decide -->
+  <div class="section">
+    <div class="decide">
+      <h2><span class="num">?</span>相談したい論点</h2>
+      <div class="q"><div class="ql">Q1 — 原型の数</div><div class="qt">クラフトUIの「型」をいくつに絞る？</div><div class="qo">全部で A/B/C/D の4種？ まずは <b>A(状態マップ)＋C(賦形)</b> の2本に絞って、B(前処理)はチェーン表示だけの簡易版で始める、が現実的。</div></div>
+      <div class="q"><div class="ql">Q2 — 賦形(C)を本当に作るか</div><div class="qt">石器・鍛造に“造形UI”を入れる？ それとも簡略化してA/Bに寄せる？</div><div class="qo">造形UIは手触りが濃いが実装コスト大。割り切って「打撃を数回選ぶ→結果判定」の軽い賦形に留める案もある。</div></div>
+      <div class="q"><div class="ql">Q3 — 入れ子構造</div><div class="qt">焼成のように「チェーン(B)の1ノードがマップ(A)」の入れ子でよい？</div><div class="qo">これを許すと、工程チェーンを背骨に、要所だけ濃いミニゲームを差し込む統一設計にできる。</div></div>
+    </div>
+  </div>
+
+  <p class="foot">
+    ※ 焼成マップ(A)は既存の <code>reaction_map</code>/<code>reaction_sim</code> エンジンを軸ラベル差し替えで流用できる（実装コスト小）。
+    剥離UI(C)は新規の造形インタラクションが必要（コスト中〜大）。上のモックアップは方向性を示す試作で、数値・形は仮。
+  </p>
+</div>
+
+<script>
+  // theme
+  document.getElementById('tt').addEventListener('click',()=>{
+    const c=document.documentElement.getAttribute('data-theme');
+    const n=c==='dark'?'light':(c==='light'?'dark':(matchMedia('(prefers-color-scheme: dark)').matches?'light':'dark'));
+    document.documentElement.setAttribute('data-theme',n); drawKiln(curFire);
+  });
+
+  // ---- 焼成マップ (temp × time) ----
+  const kc=document.getElementById('kiln'), kx=kc.getContext('2d');
+  let curFire='slow';
+  function drawKiln(mode){
+    const W=kc.width,H=kc.height; kx.clearRect(0,0,W,H);
+    // 温度グラデ背景（下=低温暗, 上=高温明/橙）
+    const g=kx.createLinearGradient(0,H,0,0);
+    g.addColorStop(0,'#241a12'); g.addColorStop(0.5,'#7a3b18'); g.addColorStop(0.8,'#c9702a'); g.addColorStop(1,'#f0c060');
+    kx.fillStyle=g; kx.fillRect(0,0,W,H);
+    const toXY=(t,tmp)=>[t*W,(1-tmp)*H]; // t,tmp in 0..1
+    // 領域
+    function blob(t,tmp,r,fill,stroke,label,sub){
+      const [x,y]=toXY(t,tmp);
+      kx.beginPath(); kx.arc(x,y,r,0,7); kx.fillStyle=fill; kx.fill();
+      kx.lineWidth=2; kx.strokeStyle=stroke; kx.stroke();
+      kx.fillStyle='#12160f'; kx.font='600 15px ui-monospace,monospace'; kx.textAlign='center';
+      kx.fillText(label,x,y-2); if(sub){kx.font='11px ui-monospace,monospace'; kx.fillText(sub,x,y+15);}
+    }
+    blob(0.62,0.66,66,'rgba(107,191,90,0.28)','#6bbf5a','素焼き','目標');
+    blob(0.16,0.86,58,'rgba(192,57,43,0.30)','#c0392b','ひび割れ','急加熱');
+    blob(0.7,0.96,42,'rgba(224,163,74,0.30)','#e0a34a','熔け','');
+    // 生焼け（下部帯）
+    kx.fillStyle='rgba(120,120,110,0.18)'; kx.fillRect(0,H*0.72,W,H*0.28);
+    kx.fillStyle='rgba(255,255,255,0.5)'; kx.font='12px ui-monospace,monospace'; kx.textAlign='left';
+    kx.fillText('生焼け（未達）',12,H-14);
+    // 経路
+    kx.lineWidth=3; kx.lineJoin='round';
+    let pts;
+    if(mode==='slow'){ pts=[[0.03,0.08],[0.25,0.18],[0.45,0.42],[0.6,0.62],[0.66,0.66]]; kx.strokeStyle='#eafce6'; }
+    else { pts=[[0.03,0.08],[0.08,0.4],[0.13,0.7],[0.17,0.85]]; kx.strokeStyle='#ffd9d2'; }
+    kx.beginPath(); pts.forEach((p,i)=>{const[x,y]=toXY(p[0],p[1]); i?kx.lineTo(x,y):kx.moveTo(x,y);}); kx.stroke();
+    // 現在点
+    const last=pts[pts.length-1]; const[lx,ly]=toXY(last[0],last[1]);
+    kx.beginPath(); kx.arc(lx,ly,7,0,7); kx.fillStyle='#fff'; kx.fill(); kx.lineWidth=2; kx.strokeStyle='#12160f'; kx.stroke();
+  }
+  document.querySelectorAll('[data-fire]').forEach(b=>b.addEventListener('click',()=>{
+    document.querySelectorAll('[data-fire]').forEach(x=>x.classList.remove('active')); b.classList.add('active');
+    curFire=b.dataset.fire; drawKiln(curFire);
+    document.getElementById('kiln-result').textContent = curFire==='slow'
+      ? '→ 乾燥→予熱→本焼と時間をかけて素焼き領域へ。良い経路＝高収率。'
+      : '→ 生乾きのまま急加熱＝左上のひび割れ暴走域に突入し失敗（バッチ全損）。';
+  }));
+
+  // ---- 剥離UI (SVG) ----
+  const kn=document.getElementById('knap');
+  function drawKnap(mode){
+    const good = mode!=='bad';
+    const core = good
+      ? '260,60 400,90 440,220 380,360 230,380 150,250 175,120'
+      : '260,60 400,90 440,220 380,360 230,380 150,250 175,120';
+    const target = '300,70 350,210 320,360 300,360 275,210'; // 細長い鏃シルエット
+    const strikes = good
+      ? [[175,120],[150,250],[230,380]]
+      : [[400,90],[440,220]];
+    const flake = good ? '400,90 440,220 470,150' : '400,90 440,220 500,120 470,80';
+    let s='';
+    // 目標シルエット（薄く）
+    s+=`<polygon points="${target}" fill="rgba(200,205,208,0.14)" stroke="rgba(200,205,208,0.5)" stroke-dasharray="4 4" stroke-width="1.5"/>`;
+    // 石核
+    s+=`<polygon points="${core}" fill="#c9cdd0" stroke="#8a9096" stroke-width="2"/>`;
+    // 剥離プレビュー
+    s+=`<polygon points="${flake}" fill="${good?'rgba(107,191,90,0.35)':'rgba(192,57,43,0.4)'}" stroke="${good?'#6bbf5a':'#c0392b'}" stroke-dasharray="5 4" stroke-width="2"/>`;
+    // 打点
+    strikes.forEach((p,i)=>{
+      s+=`<circle cx="${p[0]}" cy="${p[1]}" r="9" fill="#20242a" stroke="${good?'#6bbf5a':'#c0392b'}" stroke-width="2"/>`;
+      s+=`<circle cx="${p[0]}" cy="${p[1]}" r="3" fill="${good?'#6bbf5a':'#c0392b'}"/>`;
+    });
+    // ラベル
+    s+=`<text x="308" y="60" fill="rgba(200,205,208,0.7)" font-family="ui-monospace,monospace" font-size="12" text-anchor="middle">目標: 鏃</text>`;
+    s+=`<text x="${good?470:485}" y="${good?150:110}" fill="${good?'#8fe07f':'#e5928a'}" font-family="ui-monospace,monospace" font-size="12">剥離ﾌﾟﾚﾋﾞｭｰ</text>`;
+    kn.innerHTML=s;
+  }
+  document.querySelectorAll('[data-strike]').forEach(b=>b.addEventListener('click',()=>{
+    document.querySelectorAll('[data-strike]').forEach(x=>x.classList.remove('active')); b.classList.add('active');
+    const good=b.dataset.strike==='good'; drawKnap(b.dataset.strike);
+    document.getElementById('riskmk').style.left = good?'28%':'82%';
+    document.getElementById('knap-result').textContent = good
+      ? '→ 稜線に沿って浅く打つと長いフレークが取れ、目標形に近づく。'
+      : '→ 深く打ち込むと石核が破断。良い素材でもロスに（砂岩なら即失敗）。';
+  }));
+
+  drawKiln('slow'); drawKnap('good');
+</script>

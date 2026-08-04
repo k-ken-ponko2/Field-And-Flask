@@ -1,0 +1,206 @@
+<title>熱源の4段階 — 温度の天井が上がると作れるものが増える / Field &amp; Flask</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  :root{
+    --bg:#e9ede7; --panel:#f5f8f2; --panel-2:#fdfefb; --ink:#1b211c; --muted:#5d675e;
+    --line:#d3dacf; --line-strong:#bcc6b6; --accent:#a86e18; --accent-soft:#efe2c8;
+    --good:#3f7a3f; --warn:#b8791f; --crit:#c0392b;
+    --mono:ui-monospace,"SF Mono","JetBrains Mono",Menlo,monospace;
+    --sans:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  }
+  @media (prefers-color-scheme:dark){:root{
+    --bg:#0e120e; --panel:#161b16; --panel-2:#1d231c; --ink:#e7ece5; --muted:#93a08f;
+    --line:#2b332b; --line-strong:#3a443a; --accent:#e0a34a; --accent-soft:#39301c;
+    --good:#6fbf6f; --warn:#e0a34a; --crit:#e5705f;
+  }}
+  :root[data-theme="light"]{--bg:#e9ede7;--panel:#f5f8f2;--panel-2:#fdfefb;--ink:#1b211c;--muted:#5d675e;--line:#d3dacf;--line-strong:#bcc6b6;--accent:#a86e18;--accent-soft:#efe2c8;--good:#3f7a3f;--warn:#b8791f;--crit:#c0392b;}
+  :root[data-theme="dark"]{--bg:#0e120e;--panel:#161b16;--panel-2:#1d231c;--ink:#e7ece5;--muted:#93a08f;--line:#2b332b;--line-strong:#3a443a;--accent:#e0a34a;--accent-soft:#39301c;--good:#6fbf6f;--warn:#e0a34a;--crit:#e5705f;}
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);line-height:1.55;-webkit-font-smoothing:antialiased;}
+  .wrap{max-width:1060px;margin:0 auto;padding:30px 20px 70px;}
+  header{display:flex;flex-wrap:wrap;align-items:baseline;gap:10px 16px;}
+  .eyebrow{font-family:var(--mono);font-size:.72rem;letter-spacing:.16em;text-transform:uppercase;color:var(--accent);}
+  h1{font-size:1.5rem;margin:2px 0 0;font-weight:650;letter-spacing:-.01em;text-wrap:balance;}
+  .lead{color:var(--muted);font-size:.95rem;max-width:76ch;margin:12px 0 26px;}
+  .themetoggle{margin-left:auto;font-family:var(--mono);font-size:.72rem;color:var(--muted);cursor:pointer;border:1px solid var(--line-strong);border-radius:999px;padding:3px 10px;background:var(--panel);user-select:none;}
+  h2{font-size:1.12rem;margin:0 0 12px;display:flex;align-items:center;gap:10px;}
+  h2 .num{font-family:var(--mono);font-size:.8rem;color:var(--accent);border:1px solid var(--accent);border-radius:6px;padding:1px 7px;}
+  .section{margin-top:36px;}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:20px;}
+  .muted{color:var(--muted);font-size:.9rem;}
+
+  /* ladder */
+  .ladder{display:flex;flex-direction:column;gap:0;border-radius:12px;overflow:hidden;border:1px solid var(--line-strong);}
+  .band{display:grid;grid-template-columns:150px 1fr;gap:0;position:relative;cursor:pointer;transition:filter .15s;}
+  .band:hover{filter:brightness(1.06);}
+  .band.dim{opacity:.5;}
+  .band .left{padding:16px 14px;color:#fff;position:relative;}
+  .band .tier{font-family:var(--mono);font-size:1.5rem;font-weight:700;line-height:1;}
+  .band .temp{font-family:var(--mono);font-size:.82rem;margin-top:4px;opacity:.95;}
+  .band .need{font-size:.76rem;margin-top:8px;opacity:.92;line-height:1.4;}
+  .band .right{background:var(--panel);padding:14px 16px;border-left:2px solid rgba(0,0,0,.15);}
+  .band .rl{font-family:var(--mono);font-size:.64rem;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);}
+  .chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:7px;}
+  .chip{font-size:.82rem;padding:3px 10px;border-radius:999px;border:1px solid var(--line-strong);background:var(--panel-2);}
+  .chip.star{border-color:var(--accent);color:var(--accent);}
+  .b4 .left{background:linear-gradient(135deg,#f4d06a,#e88a2a);color:#241405;}
+  .b4 .tier,.b4 .temp,.b4 .need{color:#2a1706;}
+  .b3 .left{background:linear-gradient(135deg,#e5702a,#c0431f);}
+  .b2 .left{background:linear-gradient(135deg,#a83c1c,#6f2914);}
+  .b1 .left{background:linear-gradient(135deg,#5a2a17,#38200f);}
+  .ceil{font-family:var(--mono);font-size:.62rem;color:var(--muted);text-align:right;padding:2px 6px;}
+
+  .cols{display:grid;grid-template-columns:1fr 1fr;gap:18px;}
+  @media (max-width:760px){.cols{grid-template-columns:1fr;} .band{grid-template-columns:120px 1fr;}}
+  .easy{display:flex;flex-direction:column;gap:10px;}
+  .easy .row{display:flex;gap:10px;align-items:flex-start;}
+  .easy .ic{font-family:var(--mono);font-weight:700;color:var(--accent);border:1px solid var(--accent);border-radius:7px;padding:2px 8px;font-size:.72rem;white-space:nowrap;margin-top:1px;}
+  .easy .tx b{font-size:.92rem;} .easy .tx div{font-size:.84rem;color:var(--muted);}
+
+  .stair{display:flex;flex-direction:column;gap:8px;}
+  .stair .s{display:flex;align-items:center;gap:10px;font-size:.86rem;}
+  .stair .s .n{font-family:var(--mono);font-weight:700;color:#fff;border-radius:6px;width:26px;height:26px;display:grid;place-items:center;flex:none;}
+  .stair .s.s1 .n{background:#4a2413;} .stair .s.s2 .n{background:#7a2d16;} .stair .s.s3 .n{background:#c0431f;} .stair .s.s4 .n{background:#e0902a;color:#241405;}
+  .stair .arw{color:var(--muted);font-family:var(--mono);margin-left:6px;}
+  .loop{margin-top:14px;padding:12px 14px;border:1px dashed var(--accent);border-radius:10px;background:var(--accent-soft);font-size:.86rem;}
+  .loop b{color:var(--accent);}
+
+  .connect{display:grid;grid-template-columns:1fr 220px;gap:18px;align-items:center;}
+  @media (max-width:680px){.connect{grid-template-columns:1fr;}}
+  .axis{position:relative;height:260px;border-left:2px solid var(--line-strong);border-bottom:2px solid var(--line-strong);border-radius:2px;background:linear-gradient(0deg,#241a12,#7a3b18 55%,#c9702a 80%,#f0c060);overflow:hidden;}
+  .axis .cl{position:absolute;left:0;right:0;border-top:2px dashed rgba(255,255,255,.85);}
+  .axis .cl span{position:absolute;right:6px;top:-16px;font-family:var(--mono);font-size:.62rem;color:#fff;background:rgba(0,0,0,.35);padding:1px 5px;border-radius:4px;}
+  .axis .tg{position:absolute;transform:translate(-50%,-50%);font-family:var(--mono);font-size:.66rem;color:#12160f;background:rgba(255,255,255,.82);padding:1px 6px;border-radius:5px;white-space:nowrap;}
+  .axis .ylab{position:absolute;left:6px;top:6px;font-family:var(--mono);font-size:.62rem;color:#fff;letter-spacing:.1em;}
+
+  .model{font-size:.9rem;}
+  .model code{font-family:var(--mono);font-size:.82em;background:var(--panel-2);padding:1px 5px;border-radius:4px;}
+  .model .kv{display:grid;grid-template-columns:170px 1fr;gap:4px 12px;margin-top:8px;}
+  .model .kv .k{font-family:var(--mono);font-size:.8rem;color:var(--accent);}
+  .model .kv .v{font-size:.86rem;color:var(--muted);}
+
+  .decide{background:var(--accent-soft);border:1px solid var(--accent);border-radius:14px;padding:20px;}
+  .q{margin:12px 0;} .q .ql{font-family:var(--mono);font-size:.72rem;color:var(--accent);} .q .qt{font-weight:600;margin-top:2px;} .q .qo{font-size:.88rem;color:var(--muted);margin-top:2px;}
+  .foot{margin-top:28px;color:var(--muted);font-size:.82rem;}
+</style>
+
+<div class="wrap">
+  <header>
+    <div><div class="eyebrow">Field &amp; Flask · 熱源ツリー</div><h1>熱源の4段階 — 温度の天井が上がると作れるものが増える</h1></div>
+    <span class="themetoggle" id="tt" role="button" tabindex="0">◐ theme</span>
+  </header>
+  <p class="lead">
+    反応マップは<strong>縦軸が温度</strong>。熱源のティアは、その軸の<strong>到達できる“天井”</strong>を決める。
+    天井が上がるほど、上にある目標（土器→金属→鉄→ガラス）に手が届き、同じ温度に達するのも<strong>段々楽になる</strong>。
+    しかも上の段は下の段で作った道具が要る＝<strong>一方通行の階段</strong>（設計書 §2 の制約解除⑥が、温度に直接効く形）。
+  </p>
+
+  <!-- ladder -->
+  <div class="section">
+    <h2><span class="num">1</span>温度ラダー（バンドをクリックで階段を強調）</h2>
+    <div class="card">
+      <div class="ladder" id="ladder">
+        <div class="band b4" data-tier="4">
+          <div class="left"><div class="tier">④</div><div class="temp">1400–1600℃</div><div class="need">耐火煉瓦・強制送風<br>コークス・断熱層</div></div>
+          <div class="right"><div class="rl">何ができるか</div><div class="chips"><span class="chip star">製鉄</span><span class="chip">鋳鉄</span><span class="chip">ガラス溶融</span><span class="chip">セメント焼成</span></div></div>
+        </div>
+        <div class="band b3" data-tier="3">
+          <div class="left"><div class="tier">③</div><div class="temp">1000–1300℃</div><div class="need">ふいご・木炭<br>粘土の炉体・るつぼ</div></div>
+          <div class="right"><div class="rl">何ができるか</div><div class="chips"><span class="chip star">銅・青銅</span><span class="chip">銀・金</span><span class="chip">鍛冶</span><span class="chip">陶磁器</span></div></div>
+        </div>
+        <div class="band b2" data-tier="2">
+          <div class="left"><div class="tier">②</div><div class="temp">700–900℃</div><div class="need">土・石の囲い<br>煙突（上昇気流）</div></div>
+          <div class="right"><div class="rl">何ができるか</div><div class="chips"><span class="chip star">土器焼成</span><span class="chip">石灰焼き</span><span class="chip">鉛・スズ溶解</span></div></div>
+        </div>
+        <div class="band b1" data-tier="1">
+          <div class="left"><div class="tier">①</div><div class="temp">〜600℃ · 直火</div><div class="need">薪・地面</div></div>
+          <div class="right"><div class="rl">何ができるか</div><div class="chips"><span class="chip star">調理</span><span class="chip">乾燥</span><span class="chip">燻製</span><span class="chip">木炭作り</span></div></div>
+        </div>
+      </div>
+      <div class="ceil">↑ 上に行くほど高温。各ティアはここまでしか温度を上げられない＝反応マップの温度天井</div>
+    </div>
+  </div>
+
+  <!-- easy + staircase -->
+  <div class="section cols">
+    <div class="card">
+      <h2><span class="num">2</span>「段々楽になる」＝3つの効き方</h2>
+      <div class="easy">
+        <div class="row"><span class="ic">到達↑</span><div class="tx"><b>天井が上がる</b><div>上位の目標領域（金属・鉄・ガラス）に届く。新マップの解禁トリガでもある。</div></div></div>
+        <div class="row"><span class="ic">燃費↓</span><div class="tx"><b>本番生産が安くなる</b><div>同じ温度に少ない燃料・短い時間で到達。委任量産のコストが下がる。</div></div></div>
+        <div class="row"><span class="ic">安定↑</span><div class="tx"><b>暴走域が縮む</b><div>温度が安定＝オーバーシュートしにくい。かすり/全損の危険マージンが広がる。</div></div></div>
+      </div>
+    </div>
+    <div class="card">
+      <h2><span class="num">3</span>一方通行の階段</h2>
+      <div class="stair" id="stair">
+        <div class="s s1"><span class="n">①</span><span>直火で<b>木炭</b>を焼く <span class="arw">→ ②③の燃料に</span></span></div>
+        <div class="s s2"><span class="n">②</span><span>囲い炉で<b>土器・るつぼ・石灰</b> <span class="arw">→ ③の炉材／反応素材に</span></span></div>
+        <div class="s s3"><span class="n">③</span><span>送風炉で<b>金属・耐火粘土</b> <span class="arw">→ ④の送風機部品・耐火煉瓦に</span></span></div>
+        <div class="s s4"><span class="n">④</span><span>耐火炉で<b>鉄・ガラス・セメント</b></span></div>
+      </div>
+      <div class="loop">
+        <b>循環フック</b>：石灰焼き(②)→ <b>石灰</b>＝反応マップの塩基素材／木炭(①)→ ③④の燃料／金属(③)→ ④の送風機。
+        <em>作った熱が次の物を、作った物が次の熱を可能にする。</em>
+      </div>
+    </div>
+  </div>
+
+  <!-- connect to reaction map + model -->
+  <div class="section">
+    <h2><span class="num">4</span>反応マップとの接続 ＆ データモデル案</h2>
+    <div class="card">
+      <div class="connect">
+        <div class="model">
+          熱源は反応マップの<strong>温度軸の到達上限</strong>そのもの。既存エンジンに小さく足せる。
+          <div class="kv">
+            <div class="k">HeatSource</div><div class="v">熱源設備（Resource, ①〜④）</div>
+            <div class="k">· max_temperature</div><div class="v">温度軸の天井。<code>heat()</code> はここでクランプ</div>
+            <div class="k">· heat_efficiency</div><div class="v">本番生産の燃料・時間コスト係数（低=楽）</div>
+            <div class="k">· stability</div><div class="v">暴走域マージンのボーナス（高=安全）</div>
+            <div class="k">· tech_id</div><div class="v">解禁条件。<code>recipe_book</code> の依存で下位ティアを要求</div>
+          </div>
+          <p class="muted" style="margin-top:12px">ReactionSim に <code>heat_ceiling</code> を持たせ、<code>heat()</code> を <code>min(map天井, 熱源天井)</code> でクランプするだけ。ティアの階段は既存のレシピ逆算がそのまま扱える。</p>
+        </div>
+        <div class="axis" id="axis">
+          <div class="ylab">温度 ↑</div>
+          <div class="cl" style="bottom:33%"><span>① 600℃</span></div>
+          <div class="cl" style="bottom:52%"><span>② 900℃</span></div>
+          <div class="cl" style="bottom:72%"><span>③ 1300℃</span></div>
+          <div class="cl" style="bottom:92%"><span>④ 1600℃</span></div>
+          <div class="tg" style="left:40%;bottom:22%">木炭</div>
+          <div class="tg" style="left:65%;bottom:42%">土器</div>
+          <div class="tg" style="left:38%;bottom:62%">青銅</div>
+          <div class="tg" style="left:60%;bottom:82%">鉄・ガラス</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- decide -->
+  <div class="section">
+    <div class="decide">
+      <h2><span class="num">?</span>決めたい1点</h2>
+      <div class="q"><div class="ql">天井の効き方</div><div class="qt">天井は「ハード（それ以上上げられない）」か「ソフト（上げられるが激しく暴走・大量の燃料）」か？</div><div class="qo"><b>推奨: ハード天井</b>。挙動が明快で、"新しい炉を作らないと届かない"という階段が一目でわかる。ソフトは駆け引きが増えるが、暴走で失うだけになりがち。</div></div>
+      <div class="q"><div class="ql">燃費・時間はどこで効かせる？</div><div class="qt">「段々楽」の燃費↓は、実験マップ（時間ゼロ）ではなく本番生産／委任量産で効かせる想定でよい？</div><div class="qo">実験は今まで通り無料で試行、コスト差は本番生産に集約（§6 のテンポ原則を守る）。</div></div>
+    </div>
+  </div>
+
+  <p class="foot">※ 温度・目標配置は仮。既存の <code>reaction_sim</code>/<code>recipe_book</code> に <code>HeatSource</code> と天井クランプを足す小改修で実装可能。実装するかどうかはご相談のうえで。</p>
+</div>
+
+<script>
+  document.getElementById('tt').addEventListener('click',()=>{
+    const c=document.documentElement.getAttribute('data-theme');
+    const n=c==='dark'?'light':(c==='light'?'dark':(matchMedia('(prefers-color-scheme: dark)').matches?'light':'dark'));
+    document.documentElement.setAttribute('data-theme',n);
+  });
+  // クリックで、そのティア以下を強調（＝そこに到達するのに必要な階段）
+  const bands=[...document.querySelectorAll('.band')];
+  bands.forEach(b=>b.addEventListener('click',()=>{
+    const t=+b.dataset.tier;
+    const active=b.classList.contains('sel');
+    bands.forEach(x=>{x.classList.remove('sel'); x.classList.toggle('dim', !active && (+x.dataset.tier)>t);});
+    if(!active) b.classList.add('sel');
+  }));
+</script>
