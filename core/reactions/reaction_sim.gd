@@ -43,6 +43,10 @@ var batch_lost: bool = false
 ## この試行で設備が受けたダメージ（0〜）。
 var equipment_damage: float = 0.0
 
+## 実行した操作の記録（設計書 §7 の実験ノート＝経路の保存の下地）。
+## 各要素は { "op": StringName, "amount": float } か { "op": &"material", "material_id": StringName }。
+var operations: Array = []
+
 var _start_position: Vector2
 var _distill_penalty: float = 0.0
 var _hazard_penalty: float = 0.0
@@ -54,27 +58,33 @@ func _init(reaction_map: ReactionMap, start: Vector2 = Vector2.ZERO) -> void:
 
 ## 加熱: 上へ。
 func heat(amount: float) -> void:
+	operations.append({"op": &"heat", "amount": amount})
 	_move_to(position + Vector2(0.0, amount))
 
 ## 加水: 左へ。濃度が下がるので pH は中性へ寄る。
 func add_water(amount: float) -> void:
+	operations.append({"op": &"water", "amount": amount})
 	_move_to(position + Vector2(-amount, 0.0))
 
 ## 蒸留: 右へ。収率が落ちる。
 func distill(amount: float) -> void:
+	operations.append({"op": &"distill", "amount": amount})
 	_move_to(position + Vector2(amount, 0.0))
 	_distill_penalty += absf(amount) * DISTILL_PENALTY
 
 ## 酸を加える: 組成を酸性側へ（pH を下げる）。マーカーは動かさない。
 func add_acid(equivalents: float) -> void:
+	operations.append({"op": &"acid", "amount": equivalents})
 	net_acid += absf(equivalents)
 
 ## 塩基を加える: 組成を塩基側へ（pH を上げる＝中和）。マーカーは動かさない。
 func add_base(equivalents: float) -> void:
+	operations.append({"op": &"base", "amount": equivalents})
 	net_acid -= absf(equivalents)
 
 ## 素材投入: 固有方向へ跳躍し、素材の酸性度を組成へ加える。
 func add_material(material: MaterialDef) -> void:
+	operations.append({"op": &"material", "material_id": material.id})
 	_move_to(position + material.jump_vector * material.jump_magnitude)
 	net_acid += material.acidity * material.jump_magnitude
 
@@ -133,6 +143,20 @@ func yield_ratio() -> float:
 		# 目標外では素朴な経路長ペナルティ（試行中の目安）。
 		base = 1.0 / (1.0 + path_length * PATH_YIELD_COST)
 	return clampf(base - _distill_penalty - _hazard_penalty, 0.0, 1.0)
+
+## この試行を実験ノートとして保存する（設計書 §7）。
+## 到達した目標があれば product_id・base_purity・収率を記録し、以降は再生・委任量産できる。
+func to_note() -> ReactionNote:
+	var note := ReactionNote.new()
+	note.map_id = map.id if map != null else &""
+	note.start_position = _start_position
+	note.operations = operations.duplicate(true)
+	note.recorded_yield = yield_ratio()
+	var t := reached_target()
+	if t != null:
+		note.product_id = t.product_id
+		note.base_purity = t.base_purity
+	return note
 
 func _move_to(target: Vector2) -> void:
 	var clamped := _clamp_to_bounds(target)

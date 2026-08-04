@@ -1,0 +1,11 @@
+[gd_resource type="Resource" script_class="Recipe" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://core/crafting/recipe.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+product_id = &"sulfa_drug"
+display_name = "サルファ剤"
+inputs = Array[StringName]([&"dilute_sulfuric_acid"])
+map_id = &""
+tech_id = &"synthesis_bench"

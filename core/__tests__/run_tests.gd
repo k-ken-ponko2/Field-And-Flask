@@ -17,6 +17,9 @@ func _initialize() -> void:
 	_test_ph()
 	_test_reaction_hazards()
 	_test_acid_base_scenario()
+	_test_reaction_note()
+	_test_recipe_resolver()
+	_test_recipe_data()
 	_test_calendar()
 	print("========================================")
 	print("Field & Flask core tests: passed=%d failed=%d" % [_passed, _failed])
@@ -237,6 +240,101 @@ func _test_acid_base_scenario() -> void:
 		sim.add_material(lime)
 	_ok(sim.ph() > 3.0, "石灰で中和すると pH が希硫酸条件(≤3)を外れる")
 	_ok(sim.reached_target() == null, "中和後は希硫酸として成立しない")
+
+# --- 実験ノート（経路の保存・再生・委任量産） ------------------------------
+
+func _test_reaction_note() -> void:
+	var map := ReactionMap.new()
+	map.bounds = Rect2(0, 0, 10, 10)
+	var target := ReactionRegion.new()
+	target.kind = ReactionRegion.Kind.TARGET
+	target.center = Vector2(2, 6)
+	target.radius = 1.2
+	target.product_id = &"dilute_sulfuric_acid"
+	target.base_purity = 0.8
+	target.requires_ph = true
+	target.ph_min = 0.0
+	target.ph_max = 3.0
+	map.regions = [target]
+
+	var vitriol := MaterialDef.new()
+	vitriol.id = &"vitriol"
+	vitriol.jump_vector = Vector2(0.0, 0.0)
+	vitriol.acidity = 1.0
+	var materials := {&"vitriol": vitriol}
+
+	# 経路を実行して目標へ到達し、ノートに保存。
+	var sim := ReactionSim.new(map, Vector2(2, 2))
+	sim.add_material(vitriol)
+	sim.add_material(vitriol)  # net_acid=2、pH を条件内へ
+	sim.heat(4.0)              # → (2,6)
+	var note := sim.to_note()
+	_ok(note.product_id == &"dilute_sulfuric_acid", "ノートに到達物質が記録される")
+	_ok(note.operations.size() == 3, "操作列が記録される")
+
+	# 再生は決定的に同じ結果を再現する。
+	var replay := note.replay(map, materials)
+	_ok(replay.position == sim.position, "再生で同じ座標に到達")
+	_ok(is_equal_approx(replay.ph(), sim.ph()), "再生で同じ pH")
+	_ok(is_equal_approx(replay.yield_ratio(), sim.yield_ratio()), "再生で同じ収率")
+	_ok(replay.reached_target() != null, "再生でも目標を達成")
+
+	# 委任量産: 入力量×収率、純度は base_purity×入力純度。
+	var out := note.produce(100.0, 0.9)
+	_ok(out["product_id"] == &"dilute_sulfuric_acid", "生産物の id が返る")
+	_ok(is_equal_approx(out["amount"], 100.0 * note.recorded_yield), "生産量は入力量×収率")
+	_ok(is_equal_approx(out["purity"], 0.8 * 0.9), "純度は base_purity×入力純度")
+
+# --- レシピ逆算（願い → 必要物質） ------------------------------------------
+
+func _test_recipe_resolver() -> void:
+	var acid := Recipe.new()
+	acid.product_id = &"dilute_sulfuric_acid"
+	acid.inputs = [&"vitriol"]
+	acid.tech_id = &"glass_flask"
+	var drug := Recipe.new()
+	drug.product_id = &"sulfa_drug"
+	drug.inputs = [&"dilute_sulfuric_acid"]
+	var cure := Recipe.new()
+	cure.product_id = &"cure"
+	cure.inputs = [&"sulfa_drug"]
+	var book := RecipeBook.new([acid, drug, cure])
+
+	# 何も持っていない状態で治療薬を逆算。
+	var plan := book.resolve(&"cure", [])
+	_ok(plan["ok"], "既知レシピで葉まで辿れる")
+	_ok(plan["steps"] == [&"dilute_sulfuric_acid", &"sulfa_drug", &"cure"], "工程が依存順に並ぶ")
+	_ok(plan["raw_needed"] == [&"vitriol"], "採取が必要な原料は緑礬")
+	_ok(&"glass_flask" in plan["tech_needed"], "必要設備が挙がる")
+
+	# 中間生成物を所持していれば、そこから先だけになる（枝刈り）。
+	var plan2 := book.resolve(&"cure", [&"dilute_sulfuric_acid"])
+	_ok(plan2["steps"] == [&"sulfa_drug", &"cure"], "所持分は工程から外れる")
+	_ok(plan2["raw_needed"].is_empty(), "所持していれば原料採取は不要")
+	_ok(plan2["tech_needed"].is_empty(), "所持分の設備要求も消える")
+
+	# 循環依存は ok=false で検出する。
+	var a := Recipe.new()
+	a.product_id = &"a"
+	a.inputs = [&"b"]
+	var b := Recipe.new()
+	b.product_id = &"b"
+	b.inputs = [&"a"]
+	var loopy := RecipeBook.new([a, b])
+	_ok(not loopy.resolve(&"a", [])["ok"], "循環依存を検出する")
+
+func _test_recipe_data() -> void:
+	var acid: Recipe = load("res://data/recipes/dilute_sulfuric_acid.tres")
+	var drug: Recipe = load("res://data/recipes/sulfa_drug.tres")
+	var cure: Recipe = load("res://data/recipes/cure.tres")
+	_ok(acid != null and drug != null and cure != null, "レシピ .tres を読み込める")
+	if acid == null or drug == null or cure == null:
+		return
+	var book := RecipeBook.new([acid, drug, cure])
+	var plan := book.resolve(&"cure", [])
+	_ok(plan["steps"] == [&"dilute_sulfuric_acid", &"sulfa_drug", &"cure"], "実データでも工程順に逆算できる")
+	_ok(plan["raw_needed"] == [&"vitriol"], "実データでも原料は緑礬")
+	_ok(&"glass_flask" in plan["tech_needed"] and &"synthesis_bench" in plan["tech_needed"], "実データで必要設備が揃う")
 
 # --- カレンダー -------------------------------------------------------------
 
