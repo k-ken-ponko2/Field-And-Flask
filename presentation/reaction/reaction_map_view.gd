@@ -61,7 +61,7 @@ func _map_to_screen(p: Vector2, sz: Vector2) -> Vector2:
 	return Vector2(p.x / AXIS_MAX * sz.x, (1.0 - p.y / AXIS_MAX) * sz.y)
 
 func _draw_regions(sz: Vector2) -> void:
-	var font := ThemeDB.fallback_font
+	var font := get_theme_default_font()
 	for r in sim.map.regions:
 		var c := _map_to_screen(r.center, sz)
 		var rad := r.radius / AXIS_MAX * sz.x

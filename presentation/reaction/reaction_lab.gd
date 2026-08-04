@@ -83,7 +83,6 @@ func _build_ui() -> void:
 	panel.add_child(reset)
 
 	readout = Label.new()
-	readout.add_theme_font_override("font", ThemeDB.fallback_font)
 	panel.add_child(readout)
 
 func _row(buttons: Array) -> HBoxContainer:
