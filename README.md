@@ -49,9 +49,24 @@ godot --headless --path . --script res://core/__tests__/run_tests.gd
 
 全テストが通れば終了コード 0、失敗があれば 1 を返す（CI 連携用）。
 
-> 注: このリポジトリは Godot 未導入の環境で作成されたため、GDScript / .tres は
-> エンジン上での実行検証を **まだ通していません**。Godot 4.7 の記法・慣習に沿って
-> 書いていますが、最初にエディタで開いた際は上記テストで健全性を確認してください。
+### 検証状況
+
+この雛形は **Godot 4.7 stable（ヘッドレス）で検証済み**:
+
+- プロジェクトのインポート: 成功（`class_name` 登録・エラーなし）
+- `core/__tests__/run_tests.gd`: **passed=23 failed=0**
+- `main.tscn` 起動（`data/reactions/acid_base_map.tres` の読み込み）:
+  `到達: 希硫酸 ／ 収率 0.83 ／ 純度目安 0.70`
+
+Godot 未導入の環境でも、公式バイナリ（単一実行ファイル）を取得すれば検証できる:
+
+```bash
+curl -sSL -o godot.zip \
+  https://github.com/godotengine/godot/releases/download/4.7-stable/Godot_v4.7-stable_linux.x86_64.zip
+unzip godot.zip
+./Godot_v4.7-stable_linux.x86_64 --headless --path . --import
+./Godot_v4.7-stable_linux.x86_64 --headless --path . --script res://core/__tests__/run_tests.gd
+```
 
 ## 現状（この雛形でできること）
 
