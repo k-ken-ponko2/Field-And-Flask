@@ -20,6 +20,7 @@ func _initialize() -> void:
 	_test_reaction_note()
 	_test_recipe_resolver()
 	_test_recipe_data()
+	_test_workbench()
 	_test_calendar()
 	print("========================================")
 	print("Field & Flask core tests: passed=%d failed=%d" % [_passed, _failed])
@@ -335,6 +336,66 @@ func _test_recipe_data() -> void:
 	_ok(plan["steps"] == [&"dilute_sulfuric_acid", &"sulfa_drug", &"cure"], "実データでも工程順に逆算できる")
 	_ok(plan["raw_needed"] == [&"vitriol"], "実データでも原料は緑礬")
 	_ok(&"glass_flask" in plan["tech_needed"] and &"synthesis_bench" in plan["tech_needed"], "実データで必要設備が揃う")
+
+# --- 発見型ワークベンチ（状態×道具×動作） ---------------------------------
+# UC-1 石の鏃：素手では割れない → 敲石で剥離 → 鹿角で整形 → 押圧具で刃付け。
+
+func _make_knap_processes() -> Array:
+	var pick := ProcessDef.new()
+	pick.id = &"pick"; pick.display_name = "石材選び"
+	pick.tool = &"hand"; pick.motion = &"place"; pick.result_shape = "原石"
+	var rough := ProcessDef.new()
+	rough.id = &"rough"; rough.display_name = "粗割り"
+	rough.tool = &"hammer"; rough.motion = &"strike"; rough.requires_shape = "原石"
+	rough.result_shape = "粗い両面"; rough.effects = {&"鋭さ": 35.0, &"完成度": 20.0}
+	var form := ProcessDef.new()
+	form.id = &"form"; form.display_name = "剥離整形"
+	form.tool = &"antler"; form.motion = &"strike"; form.requires_shape = "粗い両面"
+	form.result_shape = "木葉形"; form.effects = {&"対称性": 70.0, &"完成度": 55.0}
+	var edge := ProcessDef.new()
+	edge.id = &"edge"; edge.display_name = "刃付け"
+	edge.tool = &"presser"; edge.motion = &"press"; edge.requires_shape = "木葉形"
+	edge.result_shape = "鏃"; edge.effects = {&"鋭さ": 95.0, &"完成度": 100.0}
+	return [pick, rough, form, edge]
+
+func _test_workbench() -> void:
+	var wb := Workbench.new(_make_knap_processes(), Workpiece.new())
+
+	# 素手で置く → 石材選びを発見。
+	wb.equip(&"hand")
+	var r1 := wb.apply(&"place")
+	_ok(r1["ok"] and r1["process"].id == &"pick", "素手で石材選びを発見")
+	_ok(wb.workpiece.shape == "原石", "形が原石になる")
+
+	# 素手で叩く → 割れない（状態は合うが道具違い、敲石が要る）。
+	var r2 := wb.apply(&"strike")
+	_ok(not r2["ok"] and r2["reason"] == &"wrong_tool", "素手では割れない")
+	_ok(r2["needed_tool"] == &"hammer", "必要な道具は敲石")
+
+	# 敲石で叩く → 粗割り。
+	wb.equip(&"hammer")
+	var r3 := wb.apply(&"strike")
+	_ok(r3["ok"] and r3["process"].id == &"rough", "敲石で粗割りを発見")
+	_ok(is_equal_approx(wb.workpiece.get_prop(&"完成度"), 20.0), "完成度が上がる")
+
+	# 鹿角で整形、押圧具で刃付け。
+	wb.equip(&"antler")
+	_ok(wb.apply(&"strike")["process"].id == &"form", "鹿角で剥離整形を発見")
+	wb.equip(&"presser")
+	var r5 := wb.apply(&"press")
+	_ok(r5["ok"] and r5["process"].id == &"edge", "押圧具で刃付けを発見")
+	_ok(wb.workpiece.shape == "鏃", "完成＝鏃")
+	_ok(is_equal_approx(wb.workpiece.get_prop(&"完成度"), 100.0), "完成度100")
+
+	# 打製では研がない → 効果なし。
+	var rg := wb.apply(&"grind")
+	_ok(not rg["ok"] and rg["reason"] == &"no_effect", "研ぐ動作は意味がない")
+
+	# ノート＝発見した〔道具×動作〕の列（順番通り）。
+	var note := wb.note()
+	_ok(note.size() == 4, "4工程を発見")
+	_ok(note[0]["process_id"] == &"pick" and note[3]["process_id"] == &"edge", "発見順が保存される")
+	_ok(note[1]["tool"] == &"hammer" and note[1]["motion"] == &"strike", "道具と動作が記録される")
 
 # --- カレンダー -------------------------------------------------------------
 
