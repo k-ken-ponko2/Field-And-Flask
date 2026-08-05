@@ -1,0 +1,222 @@
+<title>クラフト・ワークベンチ — 手に持つ道具で所作が変わる / Field &amp; Flask</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  :root{
+    --bg:#e9ede7;--panel:#f5f8f2;--panel-2:#fdfefb;--ink:#1b211c;--muted:#5d675e;
+    --line:#d3dacf;--line-strong:#bcc6b6;--accent:#a86e18;--accent-soft:#efe2c8;
+    --good:#3f7a3f;--warn:#b8791f;--crit:#c0392b;--stone:#6b7178;
+    --mono:ui-monospace,"SF Mono","JetBrains Mono",Menlo,monospace;--sans:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  }
+  @media (prefers-color-scheme:dark){:root{
+    --bg:#0e120e;--panel:#161b16;--panel-2:#1d231c;--ink:#e7ece5;--muted:#93a08f;
+    --line:#2b332b;--line-strong:#3a443a;--accent:#e0a34a;--accent-soft:#39301c;
+    --good:#6fbf6f;--warn:#e0a34a;--crit:#e5705f;--stone:#9aa1a8;
+  }}
+  :root[data-theme="light"]{--bg:#e9ede7;--panel:#f5f8f2;--panel-2:#fdfefb;--ink:#1b211c;--muted:#5d675e;--line:#d3dacf;--line-strong:#bcc6b6;--accent:#a86e18;--accent-soft:#efe2c8;--good:#3f7a3f;--warn:#b8791f;--crit:#c0392b;--stone:#6b7178;}
+  :root[data-theme="dark"]{--bg:#0e120e;--panel:#161b16;--panel-2:#1d231c;--ink:#e7ece5;--muted:#93a08f;--line:#2b332b;--line-strong:#3a443a;--accent:#e0a34a;--accent-soft:#39301c;--good:#6fbf6f;--warn:#e0a34a;--crit:#e5705f;--stone:#9aa1a8;}
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);line-height:1.5;-webkit-font-smoothing:antialiased;}
+  .wrap{max-width:1120px;margin:0 auto;padding:22px 16px 56px;}
+  header{display:flex;flex-wrap:wrap;align-items:baseline;gap:8px 14px;margin-bottom:6px;}
+  .eyebrow{font-family:var(--mono);font-size:.7rem;letter-spacing:.16em;text-transform:uppercase;color:var(--accent);}
+  h1{font-size:1.26rem;margin:2px 0 0;font-weight:650;}
+  .themetoggle{margin-left:auto;font-family:var(--mono);font-size:.72rem;color:var(--muted);cursor:pointer;border:1px solid var(--line-strong);border-radius:999px;padding:3px 10px;background:var(--panel);user-select:none;}
+  .lead{color:var(--muted);font-size:.9rem;max-width:80ch;margin:8px 0 16px;}
+  .lead b{color:var(--ink);}
+
+  .bench{background:var(--panel);border:1px solid var(--line);border-radius:16px;overflow:hidden;}
+  .benchtop{display:flex;align-items:center;gap:12px;padding:12px 16px;border-bottom:1px solid var(--line);background:var(--panel-2);flex-wrap:wrap;}
+  .goal{font-weight:650;font-size:1rem;} .goal .em{color:var(--stone);}
+  .goal .what{font-family:var(--mono);font-size:.7rem;color:var(--muted);font-weight:400;margin-left:6px;}
+  .prog{margin-left:auto;font-family:var(--mono);font-size:.74rem;color:var(--muted);}
+  .autochip{font-family:var(--mono);font-size:.66rem;color:var(--accent);border:1px solid var(--accent);border-radius:999px;padding:3px 9px;display:none;}
+  .autochip.on{display:inline;}
+
+  .body{display:grid;grid-template-columns:200px minmax(0,1fr) 240px;gap:0;}
+  @media (max-width:880px){.body{grid-template-columns:1fr;}}
+  .palette{border-right:1px solid var(--line);padding:12px;background:var(--panel);}
+  @media (max-width:880px){.palette{border-right:none;border-bottom:1px solid var(--line);}}
+  .rl{font-family:var(--mono);font-size:.62rem;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin:2px 0 8px;}
+  .rl.sp{margin-top:16px;}
+  .tbtn,.gbtn{display:flex;align-items:center;gap:9px;width:100%;text-align:left;background:var(--panel-2);border:1px solid var(--line-strong);border-radius:10px;padding:8px 10px;cursor:pointer;margin-bottom:6px;color:var(--ink);}
+  .tbtn:hover,.gbtn:hover{border-color:var(--accent);}
+  .tbtn:active,.gbtn:active{transform:translateY(1px);}
+  .tbtn.equip{background:var(--accent-soft);border-color:var(--accent);}
+  .tbtn .ge,.gbtn .ge{font-size:1.1rem;width:1.4rem;text-align:center;} .tbtn .gt,.gbtn .gt{font-size:.85rem;} .gk{font-family:var(--mono);font-size:.6rem;color:var(--muted);}
+  .tbtn.equip .gk{color:var(--accent);}
+
+  .stage{padding:16px;min-height:380px;display:flex;flex-direction:column;}
+  .hand{font-family:var(--mono);font-size:.74rem;color:var(--muted);margin-bottom:8px;}
+  .hand b{color:var(--accent);}
+  .surface{flex:1;border:1px dashed var(--line-strong);border-radius:12px;background:var(--panel-2);position:relative;display:grid;place-items:center;overflow:hidden;min-height:200px;}
+  .glyph{font-size:3.4rem;}
+  .clue{position:absolute;top:12px;left:14px;right:14px;font-size:.86rem;color:var(--ink);background:var(--panel);border:1px solid var(--line-strong);border-radius:9px;padding:8px 11px;}
+  .clue .lb{font-family:var(--mono);font-size:.6rem;color:var(--accent);letter-spacing:.08em;text-transform:uppercase;display:block;margin-bottom:2px;}
+  .toast{position:absolute;bottom:12px;left:0;right:0;text-align:center;font-family:var(--mono);font-size:.82rem;pointer-events:none;transition:opacity .3s;opacity:0;padding:0 12px;}
+  .toast.good{color:var(--good);} .toast.bad{color:var(--muted);} .toast.warn{color:var(--warn);}
+
+  .trail{margin-top:14px;}
+  .trailrow{display:flex;align-items:center;gap:8px;flex-wrap:wrap;min-height:36px;}
+  .node{display:flex;align-items:center;gap:7px;background:var(--panel-2);border:1px solid var(--good);border-radius:999px;padding:5px 11px;font-size:.82rem;animation:rise .45s ease;}
+  .node .nn{font-family:var(--mono);font-size:.66rem;color:var(--good);} .node .tool{font-family:var(--mono);font-size:.62rem;color:var(--muted);}
+  .arw{color:var(--muted);}
+  @keyframes rise{from{opacity:0;transform:translateY(8px) scale(.96);}to{opacity:1;transform:none;}}
+  .unknown{font-family:var(--mono);font-size:.8rem;color:var(--muted);border:1px dashed var(--line-strong);border-radius:999px;padding:5px 12px;opacity:.7;}
+  .empty{color:var(--muted);font-size:.86rem;font-style:italic;}
+
+  .insp{border-left:1px solid var(--line);padding:14px;background:var(--panel);}
+  @media (max-width:880px){.insp{border-left:none;border-top:1px solid var(--line);}}
+  .shape{font-family:var(--mono);font-size:.86rem;padding:6px 0;border-top:1px dashed var(--line-strong);border-bottom:1px dashed var(--line-strong);margin:8px 0;display:flex;justify-content:space-between;} .shape b{color:var(--stone);}
+  .prop{margin-bottom:9px;} .prop .l{display:flex;justify-content:space-between;font-size:.78rem;} .prop .l .v{font-family:var(--mono);color:var(--muted);}
+  .prop .bar{height:8px;border-radius:5px;background:var(--panel-2);border:1px solid var(--line);overflow:hidden;margin-top:3px;} .prop .bar .f{height:100%;transition:width .4s;}
+  .resetbtn{margin-top:12px;width:100%;font-size:.8rem;color:var(--ink);background:var(--panel-2);border:1px solid var(--line-strong);border-radius:9px;padding:7px;cursor:pointer;}
+
+  .foot{margin-top:20px;color:var(--muted);font-size:.82rem;line-height:1.6;} .foot code{font-family:var(--mono);font-size:.85em;background:var(--panel);padding:1px 5px;border-radius:4px;} .foot b{color:var(--ink);}
+</style>
+
+<div class="wrap">
+  <header>
+    <div><div class="eyebrow">Field &amp; Flask · 手に持つ道具</div><h1>持ち物で所作が変わる — 素手では石は割れない</h1></div>
+    <span class="themetoggle" id="tt" role="button" tabindex="0">◐ theme</span>
+  </header>
+  <p class="lead">
+    処理 ＝ <b>ワークピース状態 × 手に持つ道具 × 動作</b>。同じ「叩く」でも、<b>素手✋では石は割れず</b>、
+    <b>敲石🪨を持てば剥離</b>できる。道具を持ち替えると、できる所作と結果が変わる。工程はやってみて発見。
+  </p>
+
+  <div class="bench">
+    <div class="benchtop">
+      <div class="goal">目標：<span class="em">石の鏃(やじり)</span><span class="what">逆算が教えるのは「黒曜石が要る」まで。作り方は自分で発見。</span></div>
+      <span class="autochip" id="autochip">✓ レシピ発見 — 記録して自動化可</span>
+      <div class="prog" id="prog">発見した工程 0 / 4</div>
+    </div>
+
+    <div class="body">
+      <div class="palette">
+        <div class="rl">手に持つ道具</div>
+        <div id="tools"></div>
+        <div class="rl sp">動作（持ち物で効果が変わる）</div>
+        <div id="motions"></div>
+      </div>
+
+      <div class="stage">
+        <div class="hand">手に持っているもの：<b id="handlbl">素手</b></div>
+        <div class="surface" id="surface">
+          <div class="clue" id="clue"></div>
+          <div class="glyph" id="glyph">🪨</div>
+          <div class="toast" id="toast"></div>
+        </div>
+        <div class="trail">
+          <div class="rl">既知の工程（発見したものだけ）</div>
+          <div class="trailrow" id="trail"><span class="empty">まだ何も分かっていない。道具を持って動作を試そう。</span></div>
+        </div>
+      </div>
+
+      <div class="insp">
+        <div class="rl">ワークピース状態</div>
+        <div class="shape"><span>形</span><b id="p-shape">黒曜石の原石</b></div>
+        <div id="props"></div>
+        <button class="resetbtn" id="reset">最初からやり直す</button>
+      </div>
+    </div>
+  </div>
+
+  <p class="foot">
+    ※ モックアップ。<b>道具は進行にも効く</b>：敲石→鹿角ハンマー→（後代）金属ハンマー、うちわ→ふいご→送風機…と、
+    上位の道具ほど強い/精密な所作になる（＝熱源ツリーと同じ「段々楽」）。「あおぐ」の道具ティアは
+    <code>fanning.html</code> が既に縮図。発見した〔道具×動作〕の列＝実験ノート（<code>reaction_note</code> の一般化）。
+  </p>
+</div>
+
+<script>
+  const TOOLS=[
+    {k:'hand',    e:'✋', t:'素手',        s:'掴む・置く'},
+    {k:'hammer',  e:'🪨', t:'敲石(こうせき)', s:'強い直接打撃'},
+    {k:'antler',  e:'🦌', t:'鹿角ハンマー',   s:'軟らかい打撃'},
+    {k:'presser', e:'🦴', t:'押圧具(角)',    s:'押し剥がし'},
+  ];
+  const MOTIONS=[
+    {k:'place',  e:'👐', t:'置く/掴む'},
+    {k:'strike', e:'🔨', t:'叩く'},
+    {k:'press',  e:'⬇️', t:'押し剥がす'},
+    {k:'grind',  e:'〰️', t:'研ぐ'},
+  ];
+  // 隠れた正解：各工程は〔道具 × 動作〕で成立する
+  const STEPS=[
+    {t:'石材を据える', tool:'hand',    motion:'place',  glyph:'🪨', shape:'黒曜石の原石',
+     clue:'ごつい原石。まず素手で作業台に据えよう。',
+     props:{鋭さ:5,対称性:10,完成度:0,破損危険:5}},
+    {t:'粗割り',       tool:'hammer',  motion:'strike', glyph:'🗿', shape:'粗い両面体',
+     clue:'塊のまま。硬いものを持って強く打ち、大きく剥がしたい。',
+     props:{鋭さ:35,対称性:30,完成度:20,破損危険:35}},
+    {t:'剥離整形',     tool:'antler',  motion:'strike', glyph:'🔻', shape:'木葉形',
+     clue:'粗い両面になった。もっと軟らかい打撃で薄く整えたい。',
+     props:{鋭さ:65,対称性:70,完成度:55,破損危険:25}},
+    {t:'押圧剥離(刃付け)', tool:'presser', motion:'press', glyph:'🏹', shape:'鋭い鏃',
+     clue:'縁がまだ鈍い。小さく押し剥がして鋭い刃と返しを付けたい。',
+     props:{鋭さ:95,対称性:88,完成度:100,破損危険:10}},
+  ];
+  const BASE={鋭さ:0,対称性:0,完成度:0,破損危険:0};
+  const PROPS=['鋭さ','対称性','完成度','破損危険'];
+
+  let p=0, equipped='hand';
+  const $=id=>document.getElementById(id);
+  const toolName=k=>TOOLS.find(t=>t.k===k).t;
+
+  function renderTools(){
+    $('tools').innerHTML=TOOLS.map(t=>
+      `<button class="tbtn ${t.k===equipped?'equip':''}" data-k="${t.k}"><span class="ge">${t.e}</span><span><span class="gt">${t.t}</span><br><span class="gk">${t.k===equipped?'▶ 装備中':t.s}</span></span></button>`).join('');
+    document.querySelectorAll('.tbtn').forEach(b=>b.addEventListener('click',()=>{equipped=b.dataset.k;render();}));
+    $('handlbl').textContent=toolName(equipped);
+  }
+  function renderMotions(){
+    $('motions').innerHTML=MOTIONS.map(m=>
+      `<button class="gbtn" data-k="${m.k}"><span class="ge">${m.e}</span><span class="gt">${m.t}</span></button>`).join('');
+    document.querySelectorAll('.gbtn').forEach(b=>b.addEventListener('click',()=>act(b.dataset.k)));
+  }
+  let toastTimer;
+  function toast(msg,cls){const el=$('toast');el.textContent=msg;el.className='toast '+cls;el.style.opacity=1;clearTimeout(toastTimer);toastTimer=setTimeout(()=>el.style.opacity=0,2000);}
+
+  function act(motion){
+    const step=p<STEPS.length?STEPS[p]:null;
+    if(step && equipped===step.tool && motion===step.motion){
+      toast(`「${step.t}」を発見！（${toolName(step.tool)}で${MOTIONS.find(m=>m.k===motion).t}）`,'good'); p++;
+      if(p===STEPS.length){toast('レシピ発見！ 次回から自動化できる','good');$('autochip').classList.add('on');}
+      render(); return;
+    }
+    // 失敗フィードバック（道具×動作の噛み合わせを教える）
+    let msg='今の状態では意味がない', cls='bad';
+    if(step){
+      if(motion===step.motion && equipped!==step.tool){
+        if(step.motion==='strike' && equipped==='hand'){msg='素手では硬い石は割れない。硬い石(敲石)を持って叩け。';cls='warn';}
+        else if(step.motion==='strike' && equipped==='presser'){msg='押圧具で叩くと折れてしまう。';cls='warn';}
+        else if(step.motion==='press' && equipped!=='presser'){msg='叩くだけでは鋭い刃はつかない。押圧具で押し剥がせ。';cls='warn';}
+        else msg=`${toolName(equipped)}ではうまくいかない。別の道具では？`;
+      } else if(equipped===step.tool && motion!==step.motion){
+        msg=`${toolName(equipped)}の使い方が違うようだ。`;
+      } else if(motion==='grind'){ msg='打製石器では研がない（磨製なら砥石が要る）。'; }
+      else if(motion==='strike' && p>=2 && equipped==='hammer'){ msg='強く叩きすぎると割れる。もっと軽い打撃を。';cls='warn'; }
+    }
+    const known=STEPS.slice(0,p).find(s=>s.tool===equipped&&s.motion===motion);
+    if(known) {msg=`「${known.t}」は既に分かっている（やり直し）`;cls='bad';}
+    toast(msg,cls); render();
+  }
+
+  function render(){
+    renderTools();
+    const cur=p>0?STEPS[p-1]:{shape:'黒曜石の原石',props:BASE,glyph:'🪨'};
+    $('glyph').textContent=cur.glyph||'🪨';
+    $('clue').innerHTML = p<STEPS.length
+      ? `<span class="lb">手がかり</span>${STEPS[p].clue}`
+      : `<span class="lb">完成</span>鋭い石の鏃ができた。〔道具×動作〕の手順はノートに記録され、次回から自動でなぞれる。`;
+    if(p===0){$('trail').innerHTML='<span class="empty">まだ何も分かっていない。道具を持って動作を試そう。</span>';}
+    else{let h='';for(let i=0;i<p;i++){h+=`<span class="node"><span class="nn">${i+1}</span>${STEPS[i].t}<span class="tool">${toolName(STEPS[i].tool)}</span></span>`;if(i<p-1||p<STEPS.length)h+='<span class="arw">→</span>';}if(p<STEPS.length)h+='<span class="unknown">？ 未発見</span>';$('trail').innerHTML=h;}
+    $('p-shape').textContent=cur.shape;
+    $('props').innerHTML=PROPS.map(k=>{const v=cur.props[k]||0;const col=k==='破損危険'?'var(--crit)':(k==='完成度'?'var(--good)':'var(--accent)');
+      return `<div class="prop"><div class="l"><span>${k}</span><span class="v">${v}${k==='完成度'?'%':''}</span></div><div class="bar"><div class="f" style="width:${v}%;background:${col}"></div></div></div>`;}).join('');
+    $('prog').textContent=`発見した工程 ${p} / ${STEPS.length}`;
+  }
+  $('reset').addEventListener('click',()=>{p=0;equipped='hand';$('autochip').classList.remove('on');render();});
+  $('tt').addEventListener('click',()=>{const c=document.documentElement.getAttribute('data-theme');document.documentElement.setAttribute('data-theme',c==='dark'?'light':(c==='light'?'dark':(matchMedia('(prefers-color-scheme: dark)').matches?'light':'dark')));});
+  renderMotions(); render();
+</script>
