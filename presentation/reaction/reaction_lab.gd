@@ -86,10 +86,10 @@ func _build_ui() -> void:
 	]))
 	panel.add_child(_section("素材投入"))
 	panel.add_child(_row([
-		_btn("緑礬", func(): sim.add_material(materials[&"vitriol"])),
-		_btn("石灰", func(): sim.add_material(materials[&"lime"])),
-		_btn("水", func(): sim.add_material(materials[&"water"])),
-		_btn("硫黄", func(): sim.add_material(materials[&"sulfur"])),
+		_mat_btn("緑礬", "item_vitriol", &"vitriol"),
+		_mat_btn("石灰", "item_lime", &"lime"),
+		_mat_btn("水", "item_water", &"water"),
+		_mat_btn("硫黄", "item_sulfur", &"sulfur"),
 	]))
 	var reset := Button.new()
 	reset.text = "リセット"
@@ -121,6 +121,16 @@ func _btn(text: String, action: Callable) -> Button:
 	var b := Button.new()
 	b.text = text
 	b.pressed.connect(func(): _op(action))
+	return b
+
+## 素材ボタン（ドット絵アイコン付き）。
+func _mat_btn(text: String, sprite: String, mat_id: StringName) -> Button:
+	var b := Button.new()
+	b.text = " " + text
+	var tex: Texture2D = load("res://assets/sprites/%s.png" % sprite)
+	if tex != null:
+		b.icon = tex
+	b.pressed.connect(func(): _op(func(): sim.add_material(materials[mat_id])))
 	return b
 
 func _op(action: Callable) -> void:

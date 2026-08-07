@@ -21,7 +21,8 @@ func _ready() -> void:
 		"side": CharacterArt.make_side(),
 	}
 	_visual.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-	_visual.position = Vector2(0.0, -6.0)
+	_visual.scale = Vector2(2.0, 2.0)  # 16x24 のドット絵を等倍拡大（Nearest でくっきり）
+	_visual.position = Vector2(0.0, -18.0)
 	_apply_facing()
 
 func _physics_process(_delta: float) -> void:
