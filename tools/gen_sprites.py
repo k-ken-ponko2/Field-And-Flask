@@ -204,6 +204,30 @@ SPRITES["item_vitriol"] = [
 ]
 
 
+# --- 歩行フレーム（idle の上半身に、脚を開いた/踏み出した脚部を合成） ---
+FRONT_WALK_LEGS = [
+    "...opppppppo...",
+    "..oppo..oppo...",
+    "..oppo..oppo...",
+    ".oeeeo..oeeeo..",
+    ".oeeeo..oeeeo..",
+    "...............",
+    "...............",
+]
+SIDE_WALK_LEGS = [
+    "...oppppo......",
+    "..oppppppo.....",
+    ".oppo..oppo....",
+    ".oeeo..oeeeo...",
+    "........oeeeo..",
+    "...............",
+    "...............",
+]
+SPRITES["char_down_walk"] = SPRITES["char_down"][:17] + FRONT_WALK_LEGS
+SPRITES["char_up_walk"] = SPRITES["char_up"][:17] + FRONT_WALK_LEGS
+SPRITES["char_side_walk"] = SPRITES["char_side"][:17] + SIDE_WALK_LEGS
+
+
 def render(name, rows, pal):
     hgt = len(rows)
     wid = max(len(r) for r in rows)

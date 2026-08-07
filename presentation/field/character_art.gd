@@ -13,3 +13,12 @@ static func make_up() -> Texture2D:
 
 static func make_side() -> Texture2D:
 	return load("res://assets/sprites/char_side.png")
+
+static func make_down_walk() -> Texture2D:
+	return load("res://assets/sprites/char_down_walk.png")
+
+static func make_up_walk() -> Texture2D:
+	return load("res://assets/sprites/char_up_walk.png")
+
+static func make_side_walk() -> Texture2D:
+	return load("res://assets/sprites/char_side_walk.png")
