@@ -1,0 +1,56 @@
+:root {
+  /* Palette — dark, neon-on-night. Override these to rebrand. */
+  --c-bg: #05060c;
+  --c-bg-alt: #090c16;
+  --c-surface: #0e1220;
+  --c-line: #1e2537;
+  --c-text: #e8ecf6;
+  --c-text-dim: #8e98b0;
+  --c-accent: #4dd6ff;
+  --c-accent-2: #ff5f8f;
+  --c-accent-3: #ffb547;
+
+  /* Type */
+  --font-ja: 'Zen Kaku Gothic New', 'Hiragino Kaku Gothic ProN', 'Noto Sans JP', sans-serif;
+  --font-en: 'Oswald', 'Zen Kaku Gothic New', sans-serif;
+
+  /* Rhythm */
+  --gutter: clamp(1.25rem, 5vw, 4rem);
+  --section-y: clamp(5rem, 12vw, 10rem);
+  --max-w: 1180px;
+
+  /* Motion */
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --dur: 0.7s;
+
+  --header-h: 68px;
+}
+
+body {
+  font-family: var(--font-ja);
+  color: var(--c-text);
+  background: var(--c-bg);
+  font-size: clamp(0.9rem, 0.85rem + 0.25vw, 1rem);
+}
+
+::selection {
+  background: var(--c-accent);
+  color: #04060d;
+}
+
+/* Site-wide film grain + vignette, so flat colors don't read as empty. */
+body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 9000;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse at center, transparent 55%, rgba(0, 0, 0, 0.55) 100%),
+    repeating-linear-gradient(
+      0deg,
+      rgba(255, 255, 255, 0.014) 0 1px,
+      transparent 1px 3px
+    );
+}
