@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 """ドット絵スプライト生成器（依存なし）。
 
-低解像度のピクセルグリッド（1文字=1ピクセル）から PNG を書き出す。
+低解像度のピクセルグリッド（1文字=1ピクセル）から PNG を書き出す（アイテムのアイコン）。
+フィールドの装飾は後半の手続きピクセルアートで、キャラクターは tools/gen_character.py で、
+地形タイルは tools/gen_tiles.py で生成する。
 アセットは assets/sprites/ に native 解像度で出力し、Godot 側は Nearest で拡大する。
 プレビュー（拡大した確認用の連結画像）も出力する。
 
@@ -45,87 +47,6 @@ PALETTE = {
 
 # --- スプライト定義（各行は同じ長さ） ---
 SPRITES = {}
-
-SPRITES["char_down"] = [
-    "................",
-    ".....oooooo.....",
-    "....okkkkkko....",
-    "...okkkkkkkko...",
-    "...okksssskko...",
-    "...okssssssko...",
-    "...ossssssso...",
-    "...ossisssiso..",
-    "...osssssssso..",
-    "...ossSssSsso..",
-    "....osssssso...",
-    "...obbbbbbbbo..",
-    "..obbbbbbbbBBo.",
-    ".osbbbbbbbbBBso",
-    ".osbbbbbbbbBBso",
-    ".osobbbbbbBoBso",
-    "...obbbbbbBBo..",
-    "...opppppppo...",
-    "...opppoppp o..",
-    "...opppoppo....",
-    "...oppo opp o..",
-    "..oeeeo oeeeo..",
-    "..oeeeo oeeeo..",
-    "................",
-]
-
-SPRITES["char_up"] = [
-    "................",
-    ".....oooooo.....",
-    "....okkkkkko....",
-    "...okkkkkkkko...",
-    "...okkkkkkkko...",
-    "...okkkkkkkko...",
-    "...okkkkkkkko...",
-    "...oKkkkkkKko..",
-    "...okkkkkkkko..",
-    "...osssssssso..",
-    "....osssssso...",
-    "...obbbbbbbbo..",
-    "..oBBbbbbbbbbo.",
-    ".osBBbbbbbbbso",
-    ".osBBbbbbbbbso",
-    ".osoBbbbbboobso",
-    "...oBBbbbbbbo..",
-    "...opppppppo...",
-    "...opppoppp o..",
-    "...opppoppo....",
-    "...oppo opp o..",
-    "..oeeeo oeeeo..",
-    "..oeeeo oeeeo..",
-    "................",
-]
-
-SPRITES["char_side"] = [
-    "................",
-    ".....oooooo.....",
-    "....okkkkkko....",
-    "...okkkkkkkko...",
-    "...okksssssko...",
-    "...okssssssso..",
-    "...okssissso...",
-    "...oksssssso...",
-    "...okssSssso...",
-    "....ossssso....",
-    ".....ossso.....",
-    "...obbbbbbo....",
-    "..obbbbbbbbo...",
-    "..sbbbbbbbBo...",
-    "..sbbbbbbbBo...",
-    "..sobbbbbbBo...",
-    "...obbbbbBo....",
-    "...oppppppo....",
-    "...opppppo.....",
-    "...oppppo......",
-    "...opppo.......",
-    "..oeeeeo.......",
-    "..oeeeeo.......",
-    "................",
-]
 
 SPRITES["item_water"] = [
     "................",
@@ -204,28 +125,6 @@ SPRITES["item_vitriol"] = [
 ]
 
 
-# --- 歩行フレーム（idle の上半身に、脚を開いた/踏み出した脚部を合成） ---
-FRONT_WALK_LEGS = [
-    "...opppppppo...",
-    "..oppo..oppo...",
-    "..oppo..oppo...",
-    ".oeeeo..oeeeo..",
-    ".oeeeo..oeeeo..",
-    "...............",
-    "...............",
-]
-SIDE_WALK_LEGS = [
-    "...oppppo......",
-    "..oppppppo.....",
-    ".oppo..oppo....",
-    ".oeeo..oeeeo...",
-    "........oeeeo..",
-    "...............",
-    "...............",
-]
-SPRITES["char_down_walk"] = SPRITES["char_down"][:17] + FRONT_WALK_LEGS
-SPRITES["char_up_walk"] = SPRITES["char_up"][:17] + FRONT_WALK_LEGS
-SPRITES["char_side_walk"] = SPRITES["char_side"][:17] + SIDE_WALK_LEGS
 
 
 # =============================================================================

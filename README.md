@@ -100,6 +100,10 @@ unzip godot.zip
 
 - **採取マップを歩ける**（`CharacterBody2D` による8方向移動・カメラ追従・木や岩・柵との衝突）
   - 見た目はキャラクターと同じ「ドット絵を Nearest で 2 倍」に統一
+  - **キャラクター**は `tools/gen_character.py` が部位（髪・顔・胴・腕・脚）の組み立てで生成する
+    16×28 のドット絵。3 方向 × 4 フレームの歩行サイクル（接地フレームで上半身が弾む）、
+    待機中の呼吸とまばたき、歩行中の足元の土煙。額のゴーグルと肩掛けの鞄が錬金術師の印
+    （一覧: [`docs/prototypes/character-sheet.png`](docs/prototypes/character-sheet.png)）
   - **地形はタイル**（16px、`assets/tiles/terrain.png`、`tools/gen_tiles.py` が生成）。草・土・石畳・砂・水を
     `presentation/field/terrain.gd` が **デュアルグリッド** で敷く: 表示タイルを半セルずらし、4 隅の種別の
     組み合わせ 16 種から遷移タイルを選ぶので、境界が角丸で有機的になる。草は明暗 2 組を低周波ノイズで
