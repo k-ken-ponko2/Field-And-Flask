@@ -29,7 +29,7 @@ env:
 
 jobs:
   export-web:
-    name: export web (Godot ${{ env.GODOT_VERSION }})
+    name: export web
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
