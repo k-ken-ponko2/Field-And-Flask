@@ -89,6 +89,9 @@ jobs:
     name: deploy to GitHub Pages
     needs: export-web
     runs-on: ubuntu-latest
+    # Pages はプライベートリポジトリの無料プランでは使えない。使えるようになるまで
+    # （Public 化または有料プラン）、この失敗で実行全体を赤にしない。
+    continue-on-error: true
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
