@@ -58,9 +58,9 @@ docs/design/     ← 設計ドキュメント
 
 ### 画面（仮UI）
 
-| フィールド + HUD | 反応ラボ | フィールドから開いたラボ |
-|---|---|---|
-| ![field](docs/prototypes/screenshot-field.png) | ![lab](docs/prototypes/screenshot-reaction-lab.png) | ![overlay](docs/prototypes/screenshot-field-lab-overlay.png) |
+| フィールド + HUD | 池のほとり | 反応ラボ | フィールドから開いたラボ |
+|---|---|---|---|
+| ![field](docs/prototypes/screenshot-field.png) | ![pond](docs/prototypes/screenshot-field-pond.png) | ![lab](docs/prototypes/screenshot-reaction-lab.png) | ![overlay](docs/prototypes/screenshot-field-lab-overlay.png) |
 
 スクリーンショットは `tools/screenshot.gd` で撮れる（Xvfb + `gl_compatibility`。`SHOT_ACTION=open_lab` でラボを開いた状態も撮れる）。
 
@@ -96,9 +96,11 @@ unzip godot.zip
 ## 現状（この雛形でできること）
 
 - **採取マップを歩ける**（`CharacterBody2D` による8方向移動・カメラ追従・木や岩との衝突）
-  - 見た目は手続き生成（外部素材なし）: シームレスノイズの草原シェーダ、影付き＋Yソートの
-    木・岩・茂み・草、池・小道、ビネット。将来は `TileMapLayer` + `TileSet` や本物の
-    スプライトに差し替え可能（設計書 §8）
+  - 見た目はキャラクターと同じ「ドット絵を Nearest で 2 倍」に統一。木・岩・茂み・草・花・葦・
+    睡蓮・小石・作業台は `tools/gen_sprites.py` が手続き生成する PNG（`assets/sprites/prop_*.png`）
+  - 地面は低コントラストでピクセル化した草地シェーダ、池は波の筋が流れるピクセル水面シェーダ
+  - 木・茂み・草・花は風で揺れ（頂点シェーダ）、雲の影がゆっくり流れ、花粉が漂う
+  - 将来は `TileMapLayer` + `TileSet` や本物のスプライトに差し替え可能（設計書 §8）
 - **フィールド HUD（仮）**: 季節・日付カード、素材ポーチ（所持数）、操作ヒント、作業台に近づくと出る
   プロンプト、短いトースト。見た目はテーマ（`presentation/theme/default_theme.tres`）の
   type variation と `Palette` 色に集約してあり、スクリプト側に色の直書きをしない
