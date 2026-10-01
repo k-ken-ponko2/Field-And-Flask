@@ -3,7 +3,7 @@
 /android/
 /build/
 /export/
-export_presets.cfg
+# export_presets.cfg は Web プリセットのみ（秘密情報なし）なのでコミットする
 
 # インポート済みアセットのキャッシュ
 *.import

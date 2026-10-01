@@ -1,0 +1,98 @@
+name: Web build
+
+# Godot の Web エクスポート（WebAssembly）を作り、GitHub Pages に公開する。
+# 「Thread Support」を切ってあるので、COOP/COEP ヘッダを付けられない GitHub Pages でも動く。
+#
+# 初回だけリポジトリ設定が要る: Settings → Pages → Build and deployment → Source を
+# "GitHub Actions" にする。以降は push のたびに自動で更新される。
+# どのブランチからでもビルド成果物（web-build）はダウンロードでき、Pages には最後に
+# push したブランチの内容が載る。
+
+on:
+  push:
+    branches: ["**"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+env:
+  GODOT_VERSION: "4.7-stable"
+  # export_templates の配置先に使うバージョン名（"4.7-stable" → "4.7.stable"）。
+  TEMPLATE_DIR_VERSION: "4.7.stable"
+
+jobs:
+  export-web:
+    name: export web (Godot ${{ env.GODOT_VERSION }})
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Cache Godot binary and web templates
+        id: cache-godot
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/godot
+            ~/.local/share/godot/export_templates
+          key: godot-web-${{ env.GODOT_VERSION }}-linux-x86_64
+
+      - name: Download Godot and the Web export templates
+        if: steps.cache-godot.outputs.cache-hit != 'true'
+        run: |
+          set -euo pipefail
+          mkdir -p ~/godot
+          base="https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}"
+          curl -fsSL -o /tmp/godot.zip "$base/Godot_v${GODOT_VERSION}_linux.x86_64.zip"
+          unzip -o -q /tmp/godot.zip -d ~/godot
+          mv ~/godot/Godot_v${GODOT_VERSION}_linux.x86_64 ~/godot/godot
+          chmod +x ~/godot/godot
+          # テンプレートは 1.3GB の tpz から Web 用だけ取り出す。
+          curl -fsSL -o /tmp/templates.tpz "$base/Godot_v${GODOT_VERSION}_export_templates.tpz"
+          dest=~/.local/share/godot/export_templates/${TEMPLATE_DIR_VERSION}
+          mkdir -p "$dest"
+          unzip -o -q -j /tmp/templates.tpz \
+            'templates/web_nothreads_release.zip' 'templates/web_nothreads_debug.zip' \
+            'templates/web_release.zip' 'templates/web_debug.zip' 'templates/version.txt' \
+            -d "$dest"
+          rm -f /tmp/templates.tpz
+
+      - name: Import project
+        run: ~/godot/godot --headless --path . --import
+
+      - name: Export Web
+        run: |
+          set -euo pipefail
+          mkdir -p build/web
+          ~/godot/godot --headless --path . --export-release "Web" build/web/index.html
+          ls -la build/web
+
+      - name: Upload build (downloadable from any branch)
+        uses: actions/upload-artifact@v4
+        with:
+          name: web-build
+          path: build/web
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: build/web
+
+  deploy:
+    name: deploy to GitHub Pages
+    needs: export-web
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy
+        id: deployment
+        uses: actions/deploy-pages@v4

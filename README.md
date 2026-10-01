@@ -67,6 +67,22 @@ docs/design/     ← 設計ドキュメント
 
 スクリーンショットは `tools/screenshot.gd` で撮れる（Xvfb + `gl_compatibility`。`SHOT_ACTION=open_lab` でラボを開いた状態も撮れる）。
 
+## ブラウザで動かす（Web エクスポート）
+
+Godot の Web エクスポート（WebAssembly）で、インストール無しにブラウザで動かせる。
+`export_presets.cfg` の Web プリセットは **Thread Support を切ってある** ので、
+COOP/COEP ヘッダを付けられない GitHub Pages や素朴な静的サーバでも動く。
+
+- **GitHub Pages（自動）**: `.github/workflows/web.yml` が push のたびにエクスポートして公開する。
+  初回だけリポジトリの Settings → Pages → Source を **GitHub Actions** にする。
+  公開 URL は `https://<owner>.github.io/<repo>/`。どのブランチの実行からも成果物 `web-build` を
+  ダウンロードできる（Pages には最後に push したブランチの内容が載る）。
+- **ローカル**: `tools/serve_web.sh` がエクスポートして `http://localhost:8123/` で配信する
+  （テンプレートの入れ方はスクリプト冒頭のコメントを参照）。
+
+検証状況: Godot 4.7 の Web エクスポート（単一スレッド版、wasm 約 40MB + pck 約 5MB）を
+ヘッドレス Chromium で起動し、約 5 秒で読み込み完了・キー入力で移動できることを確認済み。
+
 ## テストの実行
 
 `core/` の純粋ロジックは UI を起動せずヘッドレスで検証できる:
