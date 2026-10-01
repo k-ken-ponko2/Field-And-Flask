@@ -74,9 +74,13 @@ Godot の Web エクスポート（WebAssembly）で、インストール無し�
 COOP/COEP ヘッダを付けられない GitHub Pages や素朴な静的サーバでも動く。
 
 - **GitHub Pages（自動）**: `.github/workflows/web.yml` が push のたびにエクスポートして公開する。
-  初回だけリポジトリの Settings → Pages → Source を **GitHub Actions** にする。
+  初回だけリポジトリ設定が要る（Pages は Public リポジトリか有料プランで使える）:
+  1. Settings → Pages → Source を **GitHub Actions** にする
+  2. Settings → Environments → `github-pages` → Deployment branches and tags で、デプロイを
+     許可するブランチを追加する（既定ではデフォルトブランチのみ。作業ブランチから公開するなら
+     `claude/*` のようなパターンを足す）
   公開 URL は `https://<owner>.github.io/<repo>/`。どのブランチの実行からも成果物 `web-build` を
-  ダウンロードできる（Pages には最後に push したブランチの内容が載る）。
+  ダウンロードできる（Pages には最後に push した許可ブランチの内容が載る）。
 - **ローカル**: `tools/serve_web.sh` がエクスポートして `http://localhost:8123/` で配信する
   （テンプレートの入れ方はスクリプト冒頭のコメントを参照）。
 
