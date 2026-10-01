@@ -96,11 +96,10 @@ jobs:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
-      # Pages が未設定なら有効化を試みる（Source: GitHub Actions）。
+      # Pages の有効化（Source: GitHub Actions）はリポジトリ設定で一度だけ行う。
+      # ワークフローのトークンではサイトを作成できないため、ここでは設定の取得のみ。
       - name: Configure Pages
         uses: actions/configure-pages@v5
-        with:
-          enablement: true
       - name: Deploy
         id: deployment
         uses: actions/deploy-pages@v4
