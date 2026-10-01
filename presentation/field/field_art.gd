@@ -107,3 +107,32 @@ static func _ellipse(img: Image, cx: int, cy: int, rx: int, ry: int, c: Color) -
 
 static func _circle(img: Image, cx: int, cy: int, r: int, c: Color) -> void:
 	_ellipse(img, cx, cy, r, r, c)
+
+## 反応ラボの入口になる作業台（木のテーブル＋フラスコ＋乳鉢）。
+static func make_station() -> Texture2D:
+	var img := _new(64, 56)
+	var wood := Color(0.55, 0.38, 0.22)
+	var wood_hi := Color(0.68, 0.50, 0.30)
+	var wood_lo := Color(0.40, 0.27, 0.16)
+	var glass := Color(0.78, 0.89, 0.93)
+	var glass_hi := Color(0.95, 0.98, 1.0)
+	var liquid := Color(0.30, 0.62, 0.36)
+	# 脚（先に描いて天板で上端を隠す）。
+	_rect(img, 8, 34, 5, 18, wood_lo)
+	_rect(img, 51, 34, 5, 18, wood_lo)
+	_rect(img, 8, 48, 48, 2, wood_lo)
+	# 天板。
+	_rect(img, 4, 27, 56, 8, wood)
+	_rect(img, 4, 27, 56, 2, wood_hi)
+	_rect(img, 4, 33, 56, 2, wood_lo)
+	# フラスコ（球底）。
+	_rect(img, 29, 7, 6, 3, wood_lo)
+	_rect(img, 30, 9, 4, 8, glass)
+	_circle(img, 32, 20, 8, glass)
+	_ellipse(img, 32, 22, 6, 4, liquid)
+	_rect(img, 28, 16, 2, 4, glass_hi)
+	# 乳鉢。
+	_ellipse(img, 50, 23, 7, 4, GRAY_MID)
+	_ellipse(img, 50, 22, 5, 2, GRAY_LOW)
+	_rect(img, 48, 14, 2, 8, GRAY_HI)
+	return _tex(img)
