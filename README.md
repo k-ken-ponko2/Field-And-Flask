@@ -58,9 +58,12 @@ docs/design/     ← 設計ドキュメント
 
 ### 画面（仮UI）
 
-| フィールド + HUD | 池のほとり | 反応ラボ | フィールドから開いたラボ |
+| フィールド + HUD（作業台の広場） | 池のほとり | 反応ラボ | フィールドから開いたラボ |
 |---|---|---|---|
 | ![field](docs/prototypes/screenshot-field.png) | ![pond](docs/prototypes/screenshot-field-pond.png) | ![lab](docs/prototypes/screenshot-reaction-lab.png) | ![overlay](docs/prototypes/screenshot-field-lab-overlay.png) |
+
+地形タイルとスプライトの一覧: [`docs/prototypes/tiles-preview.png`](docs/prototypes/tiles-preview.png) /
+[`docs/prototypes/sprites-preview.png`](docs/prototypes/sprites-preview.png)
 
 スクリーンショットは `tools/screenshot.gd` で撮れる（Xvfb + `gl_compatibility`。`SHOT_ACTION=open_lab` でラボを開いた状態も撮れる）。
 
@@ -95,15 +98,17 @@ unzip godot.zip
 
 ## 現状（この雛形でできること）
 
-- **採取マップを歩ける**（`CharacterBody2D` による8方向移動・カメラ追従・木や岩との衝突）
-  - 見た目はキャラクターと同じ「ドット絵を Nearest で 2 倍」に統一。木・岩・茂み・草・花・葦・
-    睡蓮・小石・作業台は `tools/gen_sprites.py` が手続き生成する PNG（`assets/sprites/prop_*.png`）
-  - 地面は 1 ドット単位で「組版」するシェーダ: 4 トーンの草をベイヤー法のディザで切り替え、
-    葉の筋・クローバー・野花・乾いた草地・土のパッチを散らす。小道（轍・縁の陰・踏み固められた帯）、
-    砂の岸（水際は湿って暗い）、作業台の足元の裸地も同じシェーダが固定パレットで描く
-  - 池は波の筋が流れるピクセル水面シェーダ
-  - 木・茂み・草・花は風で揺れ（頂点シェーダ）、雲の影がゆっくり流れ、花粉が漂う
-  - 将来は `TileMapLayer` + `TileSet` や本物のスプライトに差し替え可能（設計書 §8）
+- **採取マップを歩ける**（`CharacterBody2D` による8方向移動・カメラ追従・木や岩・柵との衝突）
+  - 見た目はキャラクターと同じ「ドット絵を Nearest で 2 倍」に統一
+  - **地形はタイル**（16px、`assets/tiles/terrain.png`、`tools/gen_tiles.py` が生成）。草・土・石畳・砂・水を
+    `presentation/field/terrain.gd` が **デュアルグリッド** で敷く: 表示タイルを半セルずらし、4 隅の種別の
+    組み合わせ 16 種から遷移タイルを選ぶので、境界が角丸で有機的になる。草は明暗 2 組を低周波ノイズで
+    塗り分け、全面タイルは 4 種のバリエーションで繰り返しを散らす
+  - **構図**: 作業台まわりの石畳の広場（柵・街灯・樽・木箱・ベンチ・看板・花壇）、池への枝道と
+    ほとりのベンチ、5 つの木立（切り株・キノコ・丈の高い草）、外周を 2 列の森で囲う、花の咲く木
+  - **装飾スプライト**は `tools/gen_sprites.py` が手続き生成する PNG（`assets/sprites/prop_*.png`）
+  - 池は波の筋が流れるピクセル水面シェーダ、木・茂み・草・花は風で揺れ、雲の影が流れ、花粉が漂う
+  - タイルは Godot の `TileMapLayer` なので、将来はエディタで手置き・手描きタイルへの差し替えが可能
 - **フィールド HUD（仮）**: 季節・日付カード、素材ポーチ（所持数）、操作ヒント、作業台に近づくと出る
   プロンプト、短いトースト。見た目はテーマ（`presentation/theme/default_theme.tres`）の
   type variation と `Palette` 色に集約してあり、スクリプト側に色の直書きをしない

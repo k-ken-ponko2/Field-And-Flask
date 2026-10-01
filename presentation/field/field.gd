@@ -1,11 +1,12 @@
 ## 採取マップのプレイアブルシーン（presentation 層）。
 ##
 ## 見た目はキャラクターと同じ「ドット絵を Nearest で 2 倍」に統一する。
-##   - 地面: 低コントラストでピクセル化した草地シェーダ
-##   - 池:   ピクセル化した揺らめく水面シェーダ＋砂の岸＋葦・睡蓮
-##   - 装飾: 木・岩・茂み・草・花・小石のドット絵（影付き・Yソート）、木と草は風で揺れる
-##   - 空気: ゆっくり流れる雲の影、漂う花粉、暖色の CanvasModulate、ビネット
-## 外部素材は tools/gen_sprites.py が生成する PNG のみ。
+##   - 地形: 16px タイル（草・土・石畳・砂・水）を terrain.gd がデュアルグリッドで敷く。
+##           境界は角丸で有機的、タイル画は tools/gen_tiles.py が生成
+##   - 構図: 作業台まわりの石畳の広場（柵・街灯・樽・木箱・看板・花壇）、池への枝道と
+##           ほとりのベンチ、木立（切り株・キノコ・丈の高い草）、外周を囲む森、花の咲く木
+##   - 装飾: 木・岩・茂み・草・花・小石（影付き・Yソート）、木と草は風で揺れる
+##   - 空気: 水面の波の筋、ゆっくり流れる雲の影、漂う花粉、暖色の環境光、ビネット
 ##
 ## UI（仮）: HUD（季節・ポーチ・ヒント・プロンプト・トースト）を載せ、作業台の前で
 ## E を押すと反応ラボをオーバーレイで開く。実験中はツリーを pause して時間を止める
@@ -19,194 +20,44 @@ const WALL_THICKNESS := 40.0
 const PLAYER_START := Vector2(1000.0, 700.0)
 const POND_CENTER := Vector2(520.0, 1050.0)
 const POND_RADIUS := Vector2(210.0, 135.0)
+const SAND_MARGIN := Vector2(40.0, 34.0)
 const PATH_POINTS := [
 	Vector2(120, 250), Vector2(520, 430), Vector2(980, 560),
 	Vector2(1360, 770), Vector2(1650, 1080), Vector2(1900, 1320),
 ]
-const PATH_WIDTH := 80.0
+const PATH_WIDTH := 72.0
+## 池のほとりへ降りる枝道。
+const BRANCH_POINTS := [Vector2(1000, 575), Vector2(820, 780), Vector2(715, 905)]
+const BRANCH_WIDTH := 52.0
 const STATION_POS := Vector2(1190.0, 620.0)
-const STATION_CLEARANCE := 120.0
+## 作業台まわりの石畳の広場。
+const CAMP_RECT := Rect2(1060.0, 540.0, 280.0, 190.0)
 const INTERACT_RADIUS := 84.0
+## 外周の森の帯（この内側に装飾を散らす）。
+const BORDER := 100.0
 ## 仮の所持素材（採取が実装されるまでの表示用）。
 const INVENTORY := {&"vitriol": 3, &"lime": 2, &"water": 6, &"sulfur": 1}
 
-## 地面。1 ドット（2px）単位で「組版」するピクセルアート風シェーダ。
-##   - 草: 4 トーンをベイヤー法のディザで切り替え、乾いた場所は黄みに寄せる。
-##         葉の縦筋・クローバー・小さな野花をセルのハッシュで散らす
-##   - 土のパッチ: ノイズのしきい値をディザで縁取り、小石模様を乗せる
-##   - 小道: 線分までの距離で描く。ディザの縁、轍、縁の陰、踏み固められて乾いた帯
-##   - 砂の岸: 池の楕円距離で描く。水際は湿って暗い
-##   - 裸地: 作業台の足元など、uniform で渡した楕円
-## 色はすべて固定パレット（中間色を作らない）なので、スプライトと粒感・色調が揃う。
-const GROUND_SHADER := """
-shader_type canvas_item;
-uniform sampler2D noise : repeat_enable, filter_linear;
-uniform vec2 world_size = vec2(2000.0, 1400.0);
-uniform float cell = 2.0;
-uniform vec3 grass0 : source_color = vec3(0.24, 0.45, 0.23);
-uniform vec3 grass1 : source_color = vec3(0.30, 0.53, 0.27);
-uniform vec3 grass2 : source_color = vec3(0.36, 0.60, 0.31);
-uniform vec3 grass3 : source_color = vec3(0.47, 0.69, 0.37);
-uniform vec3 dry : source_color = vec3(0.58, 0.63, 0.34);
-uniform vec3 dirt0 : source_color = vec3(0.48, 0.38, 0.25);
-uniform vec3 dirt1 : source_color = vec3(0.64, 0.53, 0.36);
-uniform vec3 dirt2 : source_color = vec3(0.73, 0.62, 0.43);
-uniform vec3 sand0 : source_color = vec3(0.62, 0.57, 0.42);
-uniform vec3 sand1 : source_color = vec3(0.79, 0.72, 0.53);
-uniform vec3 clover : source_color = vec3(0.20, 0.40, 0.22);
-uniform vec3 flower_a : source_color = vec3(0.96, 0.91, 0.58);
-uniform vec3 flower_b : source_color = vec3(0.93, 0.70, 0.78);
-uniform vec2 path_points[6];
-uniform float path_width = 80.0;
-uniform vec2 pond_center = vec2(520.0, 1050.0);
-uniform vec2 pond_radius = vec2(210.0, 135.0);
-uniform vec3 bare_spots[4];
-
-float hash21(vec2 p) {
-	vec3 p3 = fract(vec3(p.xyx) * 0.1031);
-	p3 += dot(p3, p3.yzx + 33.33);
-	return fract((p3.x + p3.y) * p3.z);
-}
-
-float bayer4(vec2 c) {
-	int x = int(mod(c.x, 4.0));
-	int y = int(mod(c.y, 4.0));
-	int m[16] = {0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5};
-	return (float(m[y * 4 + x]) + 0.5) / 16.0;
-}
-
-float seg_dist(vec2 p, vec2 a, vec2 b) {
-	vec2 ab = b - a;
-	float t = clamp(dot(p - a, ab) / dot(ab, ab), 0.0, 1.0);
-	return length(p - (a + ab * t));
-}
-
-vec3 grass_tone(float idx) {
-	if (idx < 0.5) { return grass0; }
-	if (idx < 1.5) { return grass1; }
-	if (idx < 2.5) { return grass2; }
-	return grass3;
-}
-
-vec3 dirt_tex(vec2 c) {
-	float h = hash21(c + 5.0);
-	vec3 d = dirt1;
-	if (h < 0.10) { d = dirt2; }
-	else if (h > 0.96) { d = dirt0; }
-	vec2 sc = floor(c / vec2(5.0, 4.0));
-	vec2 si = c - sc * vec2(5.0, 4.0);
-	if (hash21(sc + 9.0) < 0.06 && si.y == 1.0 && si.x >= 1.0 && si.x <= 2.0) {
-		d = (si.x == 1.0) ? dirt2 : dirt0;
-	}
-	return d;
-}
-
-void fragment() {
-	vec2 wp = UV * world_size;
-	vec2 c = floor(wp / cell);
-	vec2 p = (c + 0.5) * cell;
-	vec2 uvn = p / world_size;
-	float dith = bayer4(c);
-
-	// --- 草地 ---------------------------------------------------------
-	float macro = texture(noise, uvn * 2.5).r;
-	float mid = texture(noise, uvn * 9.0 + 0.3).r;
-	float tone_f = clamp(mid * 0.7 + macro * 0.3, 0.0, 0.999) * 3.0;
-	float lo = floor(tone_f);
-	float idx = lo + step(dith, tone_f - lo);
-	vec3 col = grass_tone(idx);
-	float dryness = smoothstep(0.62, 0.88, macro);
-	col = mix(col, dry, step(dith, dryness) * 0.4);
-
-	// 葉の縦筋（3 行ごとのグループに 2 ドットの線）。
-	float rg = floor(c.y / 3.0);
-	vec2 bk = vec2(c.x, rg);
-	if (hash21(bk + 7.0) < mix(0.07, 0.03, dryness)) {
-		float start = floor(hash21(bk + 3.0) * 2.0);
-		float r = c.y - rg * 3.0;
-		if (r >= start && r <= start + 1.0) {
-			float dir = (hash21(bk + 11.0) < 0.5) ? 1.0 : -1.0;
-			col = grass_tone(clamp(idx + dir, 0.0, 3.0));
-		}
-	}
-	// クローバー（3 点）と小さな野花（1 点）。
-	vec2 cc = floor(c / 3.0);
-	vec2 inner = c - cc * 3.0;
-	float ch = hash21(cc + 19.0);
-	if (ch < 0.04 * (1.0 - dryness)) {
-		if ((inner.y == 1.0 && inner.x != 1.0) || (inner.x == 1.0 && inner.y == 0.0)) { col = clover; }
-	} else if (ch > 0.994 && inner.x == 1.0 && inner.y == 1.0) {
-		col = (hash21(cc + 23.0) < 0.5) ? flower_a : flower_b;
-	}
-
-	// --- 土のパッチ ----------------------------------------------------
-	float dn = texture(noise, uvn * 3.2 + 0.61).r;
-	float dirt_f = smoothstep(0.77, 0.83, dn);
-	col = mix(col, dirt_tex(c), step(dith, dirt_f));
-
-	// --- 小道 ---------------------------------------------------------
-	float d = 1e9;
-	for (int i = 0; i < 5; i++) {
-		d = min(d, seg_dist(p, path_points[i], path_points[i + 1]));
-	}
-	float half_w = path_width * 0.5;
-	float dj = d + (texture(noise, uvn * 18.0 + 0.2).r - 0.5) * 18.0;
-	float worn = 1.0 - smoothstep(half_w, half_w + 52.0, dj);
-	col = mix(col, dry, step(dith, worn * 0.75) * 0.6);
-	vec3 pcol = dirt_tex(c);
-	float rut = 1.0 - smoothstep(2.0, 6.0, abs(d - half_w * 0.45));
-	pcol = mix(pcol, dirt0, step(dith, rut * 0.5));
-	float rim = smoothstep(half_w - 16.0, half_w - 2.0, dj);
-	pcol = mix(pcol, dirt0, step(dith, rim * 0.45));
-	float path_f = 1.0 - smoothstep(half_w - 8.0, half_w + 6.0, dj);
-	col = mix(col, pcol, step(dith, path_f));
-
-	// --- 砂の岸 --------------------------------------------------------
-	float pd = length((p - pond_center) / pond_radius);
-	float sand_f = 1.0 - smoothstep(1.11, 1.19, pd + (texture(noise, uvn * 14.0).r - 0.5) * 0.05);
-	vec3 sand = (pd < 1.045) ? sand0 : ((hash21(c + 31.0) < 0.07) ? sand0 : sand1);
-	col = mix(col, sand, step(dith, sand_f));
-
-	// --- 裸地（作業台の足元など） --------------------------------------
-	for (int i = 0; i < 4; i++) {
-		vec3 s = bare_spots[i];
-		if (s.z <= 0.0) { continue; }
-		float bd = length((p - s.xy) / vec2(s.z, s.z * 0.5));
-		float bf = 1.0 - smoothstep(0.82, 1.06, bd + (hash21(c + 41.0) - 0.5) * 0.1);
-		col = mix(col, dirt_tex(c), step(dith, bf));
-	}
-	COLOR = vec4(col, 1.0);
-}
-"""
-
-## 水面。頂点の位置をそのまま使い、4px セルで量子化した低周波ノイズから
-## 「浅い帯」と「波の筋（ノイズの等高線）」を作ってゆっくり流す。
+## 水面。タイルの色の上に、ノイズの等高線を波の筋としてゆっくり流す。
 const WATER_SHADER := """
 shader_type canvas_item;
 uniform sampler2D noise : repeat_enable, filter_linear;
-uniform float cell = 4.0;
-uniform vec3 deep : source_color = vec3(0.17, 0.38, 0.50);
-uniform vec3 shallow : source_color = vec3(0.22, 0.46, 0.57);
-uniform vec3 ripple : source_color = vec3(0.42, 0.66, 0.74);
-uniform vec3 glint : source_color = vec3(0.86, 0.94, 0.96);
+uniform float cell = 2.0;
+uniform float world_scale = 2.0;
+uniform vec3 ripple : source_color = vec3(0.50, 0.72, 0.86);
 varying vec2 v_pos;
 void vertex() {
-	v_pos = VERTEX;
+	v_pos = VERTEX * world_scale;
 }
 void fragment() {
+	vec4 tex = texture(TEXTURE, UV);
 	vec2 p = floor(v_pos / cell) * cell;
 	float t = TIME * 0.03;
-	float n = texture(noise, p * 0.0012 + vec2(t, t * 0.5)).r;
 	float n2 = texture(noise, p * 0.0006 - vec2(t * 0.5, t * 0.15) + 0.5).r;
-	vec3 col = mix(deep, shallow, step(0.52, n));
-	// ノイズの等高線を波の筋にする（低周波ノイズ × 少ない本数で、間隔の広いゆるい曲線にする）。
 	float level = n2 * 1.5 + TIME * 0.05;
 	float band = abs(fract(level) - 0.5);
-	float line = step(band, 0.045);
-	col = mix(col, ripple, line);
-	float sparkle = step(0.985, texture(noise, p * 0.01 + vec2(TIME * 0.02, -TIME * 0.015)).r) * line;
-	col = mix(col, glint, sparkle);
-	COLOR = vec4(col, 1.0);
+	float line = step(band, 0.035) * step(0.5, tex.a);
+	COLOR = vec4(mix(tex.rgb, ripple, line), tex.a);
 }
 """
 
@@ -215,7 +66,7 @@ const CLOUD_SHADER := """
 shader_type canvas_item;
 uniform sampler2D noise : repeat_enable, filter_linear;
 uniform vec2 world_size = vec2(2000.0, 1400.0);
-uniform float strength = 0.16;
+uniform float strength = 0.14;
 void fragment() {
 	vec2 p = UV * world_size / 1100.0 + vec2(TIME * 0.011, TIME * 0.005);
 	float n = texture(noise, p).r;
@@ -248,11 +99,13 @@ void fragment() {
 
 const FieldArt = preload("res://presentation/field/field_art.gd")
 const FieldHud = preload("res://presentation/field/field_hud.gd")
+const Terrain = preload("res://presentation/field/terrain.gd")
 const LabScene = preload("res://presentation/reaction/reaction_lab.tscn")
 
 var _rng := RandomNumberGenerator.new()
 var _shadow_tex: Texture2D
 var _sway_mat: ShaderMaterial
+var _terrain: RefCounted
 var _calendar := GameCalendar.new()
 var _hud: CanvasLayer
 var _lab_layer: CanvasLayer
@@ -265,10 +118,12 @@ func _ready() -> void:
 	_rng.seed = 20250804
 	_shadow_tex = FieldArt.make_shadow()
 	_sway_mat = _make_material(SWAY_SHADER)
-	_build_ground()
+	_build_terrain()
 	_build_pond()
-	_build_path()
-	_build_station()
+	_build_path_decals()
+	_build_camp()
+	_build_border_forest()
+	_build_groves()
 	_scatter_props()
 	_build_walls()
 	_add_player_shadow()
@@ -354,58 +209,48 @@ func _palette(name: StringName, fallback: Color) -> Color:
 		return theme.get_color(name, &"Palette")
 	return fallback
 
-# --- 地面 -------------------------------------------------------------------
+# --- 地形 -------------------------------------------------------------------
 
-func _build_ground() -> void:
-	var rect := ColorRect.new()
-	rect.name = "Ground"
-	rect.size = WORLD_SIZE
-	rect.color = Color(0.33, 0.56, 0.29)
-	rect.z_index = -20
-	rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var mat := _make_material(GROUND_SHADER)
-	mat.set_shader_parameter("noise", _make_noise(0.02, 1))
-	mat.set_shader_parameter("world_size", WORLD_SIZE)
-	mat.set_shader_parameter("path_points", PackedVector2Array(PATH_POINTS))
-	mat.set_shader_parameter("path_width", PATH_WIDTH)
-	mat.set_shader_parameter("pond_center", POND_CENTER)
-	mat.set_shader_parameter("pond_radius", POND_RADIUS)
-	# 裸地: (x, y, 横半径)。z が 0 の要素は使われない。
-	mat.set_shader_parameter("bare_spots", PackedVector3Array([
-		Vector3(STATION_POS.x, STATION_POS.y + 8.0, 62.0),
-		Vector3(PLAYER_START.x - 40.0, PLAYER_START.y + 30.0, 46.0),
-		Vector3.ZERO,
-		Vector3.ZERO,
-	]))
-	rect.material = mat
-	add_child(rect)
+func _build_terrain() -> void:
+	_terrain = Terrain.new(WORLD_SIZE, 20250804)
+	_terrain.paint_polyline(PATH_POINTS, PATH_WIDTH, Terrain.Kind.DIRT)
+	_terrain.paint_polyline(BRANCH_POINTS, BRANCH_WIDTH, Terrain.Kind.DIRT)
+	_terrain.roughen(Terrain.Kind.DIRT, 0.25)
+	_terrain.paint_rect(CAMP_RECT, Terrain.Kind.COBBLE)
+	_terrain.paint_ellipse(POND_CENTER, POND_RADIUS + SAND_MARGIN, Terrain.Kind.SAND)
+	_terrain.roughen(Terrain.Kind.SAND, 0.3)
+	_terrain.paint_ellipse(POND_CENTER, POND_RADIUS, Terrain.Kind.WATER)
+	var layers: Dictionary = _terrain.build(self, -20)
+	var water: TileMapLayer = layers[Terrain.Kind.WATER]
+	var mat := _make_material(WATER_SHADER)
+	mat.set_shader_parameter("noise", _make_noise(0.03, 2))
+	mat.set_shader_parameter("world_scale", Terrain.SCALE)
+	water.material = mat
 
 # --- 池 ---------------------------------------------------------------------
 
 func _build_pond() -> void:
-	# 砂の岸は地面シェーダが描く。ここは水面から。
-	var water := Polygon2D.new()
-	water.polygon = _ellipse_points(POND_CENTER, POND_RADIUS, 36)
-	water.z_index = -11
-	var mat := _make_material(WATER_SHADER)
-	mat.set_shader_parameter("noise", _make_noise(0.03, 2))
-	water.material = mat
-	add_child(water)
-
 	# 睡蓮（水面の上に平置き）。
 	var pad := FieldArt.prop("lilypad")
 	for off in [Vector2(-70, 24), Vector2(44, -34), Vector2(96, 46), Vector2(-20, -58)]:
 		_add_decal(pad, POND_CENTER + off, -9)
 
-	# 岸の葦。右上側は開けておく（近づける場所を残す）。
+	# 岸の葦。枝道が着く北東側は開けておく。
 	var reed := FieldArt.prop("reed")
-	for i in 22:
-		var a := TAU * float(i) / 22.0
-		if a > 4.6 and a < 6.0:
+	for i in 24:
+		var a := TAU * float(i) / 24.0
+		if a > 4.5 and a < 6.1:
 			continue
 		var jitter := Vector2(_rng.randf_range(-8.0, 8.0), _rng.randf_range(-6.0, 6.0))
-		var pos := POND_CENTER + Vector2(cos(a) * (POND_RADIUS.x + 18.0), sin(a) * (POND_RADIUS.y + 14.0)) + jitter
+		var pos := POND_CENTER + Vector2(cos(a) * (POND_RADIUS.x + 22.0), sin(a) * (POND_RADIUS.y + 18.0)) + jitter
 		_add_prop(reed, pos, 0.0, Vector2.ZERO, true)
+
+	# ほとりのベンチと街灯、花の咲く木。
+	_add_prop(FieldArt.prop("bench"), Vector2(790.0, 880.0), 18.0, Vector2(0.8, 0.5), false)
+	_add_prop(FieldArt.prop("lamp_post"), Vector2(740.0, 860.0), 6.0, Vector2(0.35, 0.3), false)
+	_add_prop(FieldArt.prop("tree_blossom"), Vector2(300.0, 840.0), 14.0, Vector2(1.25, 1.0), true)
+	_add_prop(FieldArt.prop("tree_blossom"), Vector2(700.0, 1250.0), 14.0, Vector2(1.25, 1.0), true)
+	_add_prop(FieldArt.prop("tree_blossom"), Vector2(1500.0, 470.0), 14.0, Vector2(1.25, 1.0), true)
 
 	# 水には入れないよう当たり判定。
 	var body := StaticBody2D.new()
@@ -415,59 +260,139 @@ func _build_pond() -> void:
 	body.add_child(col)
 	add_child(body)
 
-# --- 小道 -------------------------------------------------------------------
+# --- 小道の小石 -------------------------------------------------------------
 
-## 小道そのものは地面シェーダが描く。ここでは小石だけ道なりに散らす。
-func _build_path() -> void:
+func _build_path_decals() -> void:
 	var pebble := FieldArt.prop("pebble")
 	for i in PATH_POINTS.size() - 1:
 		var a: Vector2 = PATH_POINTS[i]
 		var b: Vector2 = PATH_POINTS[i + 1]
 		var dir := (b - a).normalized()
 		var normal := Vector2(-dir.y, dir.x)
-		var steps := int(a.distance_to(b) / 70.0)
+		var steps := int(a.distance_to(b) / 110.0)
 		for s in steps:
 			var along := a.lerp(b, (float(s) + _rng.randf()) / float(steps))
-			var pos := along + normal * _rng.randf_range(-PATH_WIDTH * 0.32, PATH_WIDTH * 0.32)
-			_add_decal(pebble, pos, -12)
+			var pos := along + normal * _rng.randf_range(-PATH_WIDTH * 0.3, PATH_WIDTH * 0.3)
+			if _terrain.kind_at_world(pos) == Terrain.Kind.DIRT:
+				_add_decal(pebble, pos, -12)
 
-# --- 作業台 -----------------------------------------------------------------
+# --- 作業台の広場 -----------------------------------------------------------
 
-## 足元の裸地は地面シェーダ（bare_spots）が描く。
-func _build_station() -> void:
+func _build_camp() -> void:
+	var r := CAMP_RECT
 	_add_prop(FieldArt.prop("station"), STATION_POS, 30.0, Vector2(1.5, 1.1), false)
 
-# --- 装飾物（木・岩・茂み・草・花） -----------------------------------------
+	# 柵: 上辺と右辺を囲い、左辺は小道の入口を空ける。
+	_fence_h(r.position.x, r.end.x, r.position.y - 6.0)
+	_fence_v(r.end.x + 6.0, r.position.y + 10.0, r.end.y)
+	_fence_v(r.position.x - 6.0, r.position.y + 10.0, r.position.y + 50.0)
+	_fence_v(r.position.x - 6.0, r.position.y + 150.0, r.end.y)
+
+	# 街灯は入口と出口の角に。
+	_add_prop(FieldArt.prop("lamp_post"), Vector2(r.position.x + 18.0, r.position.y + 24.0), 6.0, Vector2(0.35, 0.3), false)
+	_add_prop(FieldArt.prop("lamp_post"), Vector2(r.end.x - 20.0, r.end.y - 10.0), 6.0, Vector2(0.35, 0.3), false)
+
+	# 樽と木箱は広場の隅に。
+	_add_prop(FieldArt.prop("crate"), Vector2(r.position.x + 60.0, r.position.y + 40.0), 12.0, Vector2(0.6, 0.45), false)
+	_add_prop(FieldArt.prop("crate"), Vector2(r.position.x + 92.0, r.position.y + 46.0), 12.0, Vector2(0.6, 0.45), false)
+	_add_prop(FieldArt.prop("barrel"), Vector2(r.end.x - 50.0, r.position.y + 36.0), 11.0, Vector2(0.55, 0.4), false)
+	_add_prop(FieldArt.prop("barrel"), Vector2(r.end.x - 76.0, r.position.y + 52.0), 11.0, Vector2(0.55, 0.4), false)
+	_add_prop(FieldArt.prop("barrel"), Vector2(r.end.x - 44.0, r.end.y - 56.0), 11.0, Vector2(0.55, 0.4), false)
+	_add_prop(FieldArt.prop("bench"), Vector2(r.position.x + 70.0, r.end.y - 14.0), 18.0, Vector2(0.8, 0.5), false)
+	_add_prop(FieldArt.prop("sign"), Vector2(r.position.x - 30.0, r.position.y + 20.0), 6.0, Vector2.ZERO, false)
+
+	# 花壇は柵の外側に並べる。
+	var bed := FieldArt.prop("flowerbed")
+	for x in [r.position.x + 40.0, r.position.x + 76.0, r.position.x + 112.0, r.end.x - 112.0, r.end.x - 76.0, r.end.x - 40.0]:
+		_add_prop(bed, Vector2(x, r.position.y - 18.0), 0.0, Vector2.ZERO, false)
+	for y in [r.position.y + 70.0, r.position.y + 100.0, r.position.y + 130.0]:
+		_add_prop(FieldArt.prop("bush_flower"), Vector2(r.end.x + 36.0, y), 0.0, Vector2(0.7, 0.6), true)
+
+## 横の柵: 16px の段を並べ、端に柱を立てる。1 本の当たり判定で塞ぐ。
+func _fence_h(from_x: float, to_x: float, y: float) -> void:
+	var seg := FieldArt.prop("fence_h")
+	var step := seg.get_width() * PIXEL
+	var x := from_x
+	while x + step <= to_x:
+		_add_prop(seg, Vector2(x + step * 0.5, y), 0.0, Vector2.ZERO, false)
+		x += step
+	_add_prop(FieldArt.prop("fence_post"), Vector2(x + 5.0, y), 0.0, Vector2.ZERO, false)
+	_add_wall(Vector2((from_x + x) * 0.5, y - 8.0), Vector2(x - from_x + 10.0, 10.0))
+
+## 縦の柵: 柱を並べる。
+func _fence_v(x: float, from_y: float, to_y: float) -> void:
+	var post := FieldArt.prop("fence_post")
+	var y := from_y
+	while y <= to_y:
+		_add_prop(post, Vector2(x, y), 0.0, Vector2.ZERO, false)
+		y += 20.0
+	_add_wall(Vector2(x, (from_y + to_y) * 0.5 - 8.0), Vector2(10.0, to_y - from_y))
+
+# --- 外周の森と木立 ---------------------------------------------------------
+
+func _build_border_forest() -> void:
+	var trees := FieldArt.trees()
+	var blossom := FieldArt.prop("tree_blossom")
+	var step := 54.0
+	var pick := func() -> Texture2D:
+		return blossom if _rng.randf() < 0.05 else trees[_rng.randi_range(0, trees.size() - 1)]
+	# 上下 2 列、左右 2 列。奥の列ほど上に置いて重なりを出す。
+	var x := 20.0
+	while x < WORLD_SIZE.x:
+		_add_prop(pick.call(), Vector2(x + _rng.randf_range(-10, 10), _rng.randf_range(26, 46)), 0.0, Vector2(1.25, 1.0), true)
+		_add_prop(pick.call(), Vector2(x + 27.0 + _rng.randf_range(-10, 10), _rng.randf_range(62, 84)), 0.0, Vector2(1.25, 1.0), true)
+		_add_prop(pick.call(), Vector2(x + _rng.randf_range(-10, 10), WORLD_SIZE.y - _rng.randf_range(2, 20)), 0.0, Vector2(1.25, 1.0), true)
+		_add_prop(pick.call(), Vector2(x + 27.0 + _rng.randf_range(-10, 10), WORLD_SIZE.y - _rng.randf_range(34, 54)), 0.0, Vector2(1.25, 1.0), true)
+		x += step
+	var y := 100.0
+	while y < WORLD_SIZE.y - 60.0:
+		_add_prop(pick.call(), Vector2(_rng.randf_range(16, 34), y + _rng.randf_range(-8, 8)), 0.0, Vector2(1.25, 1.0), true)
+		_add_prop(pick.call(), Vector2(_rng.randf_range(54, 76), y + 27.0 + _rng.randf_range(-8, 8)), 0.0, Vector2(1.25, 1.0), true)
+		_add_prop(pick.call(), Vector2(WORLD_SIZE.x - _rng.randf_range(16, 34), y + _rng.randf_range(-8, 8)), 0.0, Vector2(1.25, 1.0), true)
+		_add_prop(pick.call(), Vector2(WORLD_SIZE.x - _rng.randf_range(54, 76), y + 27.0 + _rng.randf_range(-8, 8)), 0.0, Vector2(1.25, 1.0), true)
+		y += step
+
+func _build_groves() -> void:
+	var trees := FieldArt.trees()
+	for center in [Vector2(320, 380), Vector2(1620, 300), Vector2(1740, 980), Vector2(380, 660), Vector2(1150, 1180)]:
+		for i in 6:
+			var p: Vector2 = center + Vector2(_rng.randf_range(-120, 120), _rng.randf_range(-80, 80))
+			if _is_free(p, 20.0):
+				_add_prop(trees[_rng.randi_range(0, trees.size() - 1)], p, 14.0, Vector2(1.25, 1.0), true)
+		for tex_name in ["bush", "stump", "mushroom", "mushroom", "tall_grass", "tall_grass", "tall_grass", "bush_flower"]:
+			var p: Vector2 = center + Vector2(_rng.randf_range(-150, 150), _rng.randf_range(-100, 100))
+			if _is_free(p, 10.0):
+				var solid := 10.0 if tex_name in ["bush", "stump"] else 0.0
+				var shadow := Vector2(0.8, 0.6) if tex_name in ["bush", "stump", "bush_flower"] else Vector2.ZERO
+				_add_prop(FieldArt.prop(tex_name), p, solid, shadow, tex_name != "stump")
+
+# --- 散らす装飾（岩・茂み・草・花） -----------------------------------------
 
 func _scatter_props() -> void:
-	var trees := FieldArt.trees()
-	var mushroom := FieldArt.prop("mushroom")
-	for i in 20:
-		var at := _place_one(trees[i % trees.size()], 14.0, Vector2(1.25, 1.0), true, 70.0)
-		# 木陰にときどきキノコ。
-		if at != Vector2.INF and _rng.randf() < 0.4:
-			var side := -1.0 if _rng.randf() < 0.5 else 1.0
-			_add_prop(mushroom, at + Vector2(side * _rng.randf_range(26.0, 40.0), _rng.randf_range(4.0, 14.0)), 0.0, Vector2.ZERO, false)
+	for i in 6:
+		_place_one(FieldArt.prop("rock_a"), 16.0, Vector2(0.8, 0.6), false, 20.0)
+	for i in 10:
+		_place_one(FieldArt.prop("rock_b"), 0.0, Vector2(0.45, 0.4), false, 8.0)
+	for i in 10:
+		_place_one(FieldArt.prop("bush"), 0.0, Vector2(0.8, 0.7), true, 16.0)
+	for i in 8:
+		_place_one(FieldArt.prop("bush_flower"), 0.0, Vector2(0.8, 0.7), true, 16.0)
+	for i in 30:
+		_place_one(FieldArt.prop("tall_grass"), 0.0, Vector2.ZERO, true, 8.0)
+	var tuft := FieldArt.prop("tuft")
+	for i in 70:
+		_place_one(tuft, 0.0, Vector2.ZERO, true, 4.0)
 	var twig := FieldArt.prop("twig")
-	for i in 14:
-		var at := _find_free(30.0)
+	for i in 12:
+		var at := _find_free(8.0)
 		if at != Vector2.INF:
 			_add_decal(twig, at, -10)
-	for i in 8:
-		_place_one(FieldArt.prop("rock_a"), 16.0, Vector2(0.8, 0.6), false, 60.0)
-	for i in 10:
-		_place_one(FieldArt.prop("rock_b"), 0.0, Vector2(0.45, 0.4), false, 40.0)
-	for i in 16:
-		_place_one(FieldArt.prop("bush"), 0.0, Vector2(0.8, 0.7), true, 50.0)
-	var tuft := FieldArt.prop("tuft")
-	for i in 90:
-		_place_one(tuft, 0.0, Vector2.ZERO, true, 30.0)
 	_scatter_flowers()
 
 func _scatter_flowers() -> void:
 	var flowers := FieldArt.flowers()
 	for c in 16:
-		var center := _find_free(40.0)
+		var center := _find_free(30.0)
 		if center == Vector2.INF:
 			continue
 		var primary: Texture2D = flowers[_rng.randi_range(0, flowers.size() - 1)]
@@ -477,41 +402,34 @@ func _scatter_flowers() -> void:
 			_add_prop(primary if _rng.randf() < 0.7 else secondary, pos, 0.0, Vector2.ZERO, true)
 
 ## 空いている場所に 1 つ置き、置いた位置を返す（置けなければ Vector2.INF）。
-func _place_one(tex: Texture2D, radius: float, shadow_scale: Vector2, sway: bool, path_margin: float) -> Vector2:
-	var p := _find_free(path_margin)
+func _place_one(tex: Texture2D, radius: float, shadow_scale: Vector2, sway: bool, margin: float) -> Vector2:
+	var p := _find_free(margin)
 	if p != Vector2.INF:
 		_add_prop(tex, p, radius, shadow_scale, sway)
 	return p
 
-## 池・小道・開始地点・作業台を避けたランダムな位置を返す（見つからなければ Vector2.INF）。
-func _find_free(path_margin: float) -> Vector2:
+## 草地で、池・小道・広場・開始地点・作業台・外周の森から離れたランダムな位置を返す。
+func _find_free(margin: float) -> Vector2:
 	for attempt in 60:
 		var p := Vector2(
-			_rng.randf_range(80.0, WORLD_SIZE.x - 80.0),
-			_rng.randf_range(80.0, WORLD_SIZE.y - 80.0)
+			_rng.randf_range(BORDER, WORLD_SIZE.x - BORDER),
+			_rng.randf_range(BORDER, WORLD_SIZE.y - BORDER)
 		)
-		if _is_free(p, path_margin):
+		if _is_free(p, margin):
 			return p
 	return Vector2.INF
 
-func _is_free(p: Vector2, path_margin: float) -> bool:
-	if p.distance_to(PLAYER_START) < 190.0:
+func _is_free(p: Vector2, margin: float) -> bool:
+	if p.x < BORDER or p.y < BORDER or p.x > WORLD_SIZE.x - BORDER or p.y > WORLD_SIZE.y - BORDER:
 		return false
-	if p.distance_to(STATION_POS) < STATION_CLEARANCE:
+	if p.distance_to(PLAYER_START) < 150.0:
 		return false
-	var d := p - POND_CENTER
-	var rx := POND_RADIUS.x + 70.0
-	var ry := POND_RADIUS.y + 60.0
-	if (d.x * d.x) / (rx * rx) + (d.y * d.y) / (ry * ry) <= 1.0:
+	if CAMP_RECT.grow(40.0).has_point(p):
 		return false
-	return not _near_path(p, path_margin)
-
-func _near_path(p: Vector2, margin: float) -> bool:
-	for i in PATH_POINTS.size() - 1:
-		var q := Geometry2D.get_closest_point_to_segment(p, PATH_POINTS[i], PATH_POINTS[i + 1])
-		if q.distance_to(p) < PATH_WIDTH * 0.5 + margin:
-			return true
-	return false
+	for off in [Vector2.ZERO, Vector2(margin, 0), Vector2(-margin, 0), Vector2(0, margin), Vector2(0, -margin)]:
+		if _terrain.kind_at_world(p + off) != Terrain.Kind.GRASS:
+			return false
+	return true
 
 ## Y ソートされる立ち物。原点が足元になるよう、2 倍にしたスプライトを上にずらす。
 ## radius > 0 なら円の当たり判定を付ける。shadow_scale が ZERO なら影なし。
@@ -546,7 +464,7 @@ func _add_prop(tex: Texture2D, pos: Vector2, radius: float, shadow_scale: Vector
 
 	add_child(n)
 
-## 地面に平置きする飾り（小石・睡蓮）。Y ソートに参加せず、指定の z に置く。
+## 地面に平置きする飾り（小石・睡蓮・小枝）。Y ソートに参加せず、指定の z に置く。
 func _add_decal(tex: Texture2D, pos: Vector2, z: int) -> void:
 	var spr := Sprite2D.new()
 	spr.texture = tex
@@ -562,11 +480,12 @@ func _build_walls() -> void:
 	var t := WALL_THICKNESS
 	var w := WORLD_SIZE.x
 	var h := WORLD_SIZE.y
-	# 見えない壁（マップ外周のすぐ外側）。
-	_add_wall(Vector2(w * 0.5, -t * 0.5), Vector2(w, t))
-	_add_wall(Vector2(w * 0.5, h + t * 0.5), Vector2(w, t))
-	_add_wall(Vector2(-t * 0.5, h * 0.5), Vector2(t, h))
-	_add_wall(Vector2(w + t * 0.5, h * 0.5), Vector2(t, h))
+	# 見えない壁。外周の森の内側で止める。
+	var inset := BORDER - 20.0
+	_add_wall(Vector2(w * 0.5, inset - t * 0.5), Vector2(w, t))
+	_add_wall(Vector2(w * 0.5, h - inset + t * 0.5), Vector2(w, t))
+	_add_wall(Vector2(inset - t * 0.5, h * 0.5), Vector2(t, h))
+	_add_wall(Vector2(w - inset + t * 0.5, h * 0.5), Vector2(t, h))
 
 func _add_wall(center: Vector2, size: Vector2) -> void:
 	var body := StaticBody2D.new()
@@ -673,21 +592,3 @@ func _ellipse_points(center: Vector2, radius: Vector2, segments: int) -> PackedV
 		var a := TAU * float(i) / float(segments)
 		pts.append(center + Vector2(cos(a) * radius.x, sin(a) * radius.y))
 	return pts
-
-func _add_poly(points: PackedVector2Array, color: Color, z: int) -> void:
-	var poly := Polygon2D.new()
-	poly.polygon = points
-	poly.color = color
-	poly.z_index = z
-	add_child(poly)
-
-func _add_line(points: PackedVector2Array, width: float, color: Color, z: int) -> void:
-	var line := Line2D.new()
-	line.points = points
-	line.width = width
-	line.default_color = color
-	line.joint_mode = Line2D.LINE_JOINT_ROUND
-	line.begin_cap_mode = Line2D.LINE_CAP_ROUND
-	line.end_cap_mode = Line2D.LINE_CAP_ROUND
-	line.z_index = z
-	add_child(line)

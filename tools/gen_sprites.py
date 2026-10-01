@@ -500,6 +500,194 @@ def prop_twig():
     return cv.result()
 
 
+# --- 構造物・小物（構図用） ---------------------------------------------------
+
+STRUCT_COLORS = {
+    "post": h("7a5a36"), "post_hi": h("9c7a4e"), "post_lo": h("54391f"), "outline": h("3a2a18"),
+    "iron": h("3c3c42"), "iron_hi": h("6a6a72"), "lamp": h("f6e2a0"), "lamp_hi": h("fff7d6"),
+    "blossom_light": h("f6c9d9"), "blossom_mid": h("e9a0b8"), "blossom_dark": h("c97a97"), "blossom_edge": h("8f4f6a"),
+    "barrel": h("8c6239"), "barrel_hi": h("b08457"), "barrel_lo": h("5e3f23"), "hoop": h("4a4a50"),
+    "plank": h("b08457"), "plank_lo": h("8c6239"), "plank_hi": h("c99a66"),
+    "grass_tall": h("5f9a4c"), "grass_tall_hi": h("8bc06d"), "grass_tall_lo": h("3f6b3a"),
+    "ring": h("c9a06a"), "ring_lo": h("8a6a3e"),
+}
+
+
+def prop_fence_h():
+    C = STRUCT_COLORS
+    cv = Canvas(16, 16)
+    cv.rect(0, 2, 3, 14, C["post"])
+    cv.rect(0, 2, 1, 14, C["post_hi"])
+    cv.rect(2, 2, 1, 14, C["post_lo"])
+    cv.rect(0, 1, 3, 1, C["post_hi"])
+    for y in (6, 11):
+        cv.rect(3, y, 13, 2, C["post"])
+        cv.rect(3, y, 13, 1, C["post_hi"])
+    cv.outline(C["outline"])
+    return cv.result()
+
+
+def prop_fence_post():
+    C = STRUCT_COLORS
+    cv = Canvas(5, 16)
+    cv.rect(1, 2, 3, 14, C["post"])
+    cv.rect(1, 2, 1, 14, C["post_hi"])
+    cv.rect(3, 2, 1, 14, C["post_lo"])
+    cv.rect(1, 1, 3, 1, C["post_hi"])
+    cv.outline(C["outline"])
+    return cv.result()
+
+
+def prop_lamp_post():
+    C = STRUCT_COLORS
+    cv = Canvas(11, 34)
+    cv.rect(4, 8, 3, 26, C["iron"])
+    cv.rect(4, 8, 1, 26, C["iron_hi"])
+    cv.rect(2, 32, 7, 2, C["iron"])
+    cv.rect(1, 1, 9, 1, C["iron"])
+    cv.rect(2, 2, 7, 6, C["lamp"])
+    cv.rect(3, 3, 2, 2, C["lamp_hi"])
+    cv.rect(2, 7, 7, 1, C["iron"])
+    cv.rect(4, 0, 3, 1, C["iron"])
+    cv.outline(C["outline"])
+    return cv.result()
+
+
+def prop_stump():
+    C = PROP_COLORS
+    S = STRUCT_COLORS
+    cv = Canvas(18, 14)
+    cv.ellipse(9, 10, 8, 3, C["trunk_lo"])
+    cv.rect(2, 5, 14, 5, C["trunk"])
+    cv.rect(2, 5, 3, 5, C["trunk_hi"])
+    cv.ellipse(9, 5, 7, 3, C["trunk_hi"])
+    cv.ellipse(9, 5, 5, 2, h("d9b68a"))
+    cv.ellipse(9, 5, 3, 1, C["trunk_hi"])
+    cv.put(9, 5, h("d9b68a"))
+    cv.outline(S["outline"])
+    return cv.result()
+
+
+def prop_tree_blossom():
+    C = PROP_COLORS
+    S = STRUCT_COLORS
+    rng = random.Random(77)
+    cv = Canvas(34, 46)
+    cv.rect(14, 28, 6, 16, C["trunk"])
+    cv.rect(14, 28, 2, 16, C["trunk_hi"])
+    cv.rect(18, 28, 2, 16, C["trunk_lo"])
+    cv.rect(12, 42, 10, 2, C["trunk_lo"])
+    circles = [(17, 16, 12), (9, 20, 8), (25, 20, 8), (17, 9, 8), (13, 24, 7), (22, 24, 7)]
+    cv.shaded_blobs(circles, S["blossom_light"], S["blossom_mid"], S["blossom_dark"], rng, speck=0.12)
+    cv.outline(S["blossom_edge"])
+    return cv.result()
+
+
+def prop_barrel():
+    C = STRUCT_COLORS
+    cv = Canvas(12, 16)
+    cv.rect(1, 1, 10, 14, C["barrel"])
+    cv.rect(1, 1, 3, 14, C["barrel_hi"])
+    cv.rect(8, 1, 3, 14, C["barrel_lo"])
+    cv.rect(0, 3, 12, 10, C["barrel"])
+    cv.rect(0, 3, 3, 10, C["barrel_hi"])
+    cv.rect(9, 3, 3, 10, C["barrel_lo"])
+    for y in (4, 11):
+        cv.rect(0, y, 12, 1, C["hoop"])
+    cv.rect(2, 1, 8, 1, C["plank_hi"])
+    cv.outline(C["outline"])
+    return cv.result()
+
+
+def prop_crate():
+    C = STRUCT_COLORS
+    cv = Canvas(14, 13)
+    cv.rect(0, 1, 14, 12, C["plank"])
+    cv.rect(0, 1, 14, 1, C["plank_hi"])
+    cv.rect(0, 12, 14, 1, C["plank_lo"])
+    cv.rect(0, 1, 1, 12, C["plank_hi"])
+    cv.rect(13, 1, 1, 12, C["plank_lo"])
+    for i in range(12):
+        cv.put(1 + i, 2 + (i * 10) // 12, C["plank_lo"])
+    cv.rect(0, 6, 14, 1, C["plank_lo"])
+    cv.outline(C["outline"])
+    return cv.result()
+
+
+def prop_sign():
+    C = STRUCT_COLORS
+    cv = Canvas(14, 16)
+    cv.rect(6, 8, 2, 8, C["post"])
+    cv.rect(0, 1, 14, 8, C["plank"])
+    cv.rect(0, 1, 14, 1, C["plank_hi"])
+    cv.rect(0, 8, 14, 1, C["plank_lo"])
+    cv.rect(2, 3, 10, 1, C["plank_lo"])
+    cv.rect(2, 5, 7, 1, C["plank_lo"])
+    cv.outline(C["outline"])
+    return cv.result()
+
+
+def prop_bench():
+    C = STRUCT_COLORS
+    cv = Canvas(22, 13)
+    cv.rect(1, 1, 20, 3, C["plank"])
+    cv.rect(1, 1, 20, 1, C["plank_hi"])
+    cv.rect(0, 6, 22, 3, C["plank"])
+    cv.rect(0, 6, 22, 1, C["plank_hi"])
+    cv.rect(0, 8, 22, 1, C["plank_lo"])
+    cv.rect(2, 4, 2, 2, C["post_lo"])
+    cv.rect(18, 4, 2, 2, C["post_lo"])
+    cv.rect(2, 9, 2, 4, C["post_lo"])
+    cv.rect(18, 9, 2, 4, C["post_lo"])
+    cv.outline(C["outline"])
+    return cv.result()
+
+
+def prop_tall_grass():
+    C = STRUCT_COLORS
+    cv = Canvas(14, 13)
+    blades = [(1, 5), (3, 2), (5, 4), (7, 1), (9, 3), (11, 5), (12, 7)]
+    for i, (x, top) in enumerate(blades):
+        col = C["grass_tall_hi"] if i % 3 == 1 else (C["grass_tall_lo"] if i % 3 == 2 else C["grass_tall"])
+        cv.rect(x, top, 1, 13 - top, col)
+        cv.put(x + 1, top + 2, C["grass_tall"])
+        if i % 2 == 0:
+            cv.put(x - 1, top + 1, col)
+    return cv.result()
+
+
+def prop_bush_flower():
+    C = PROP_COLORS
+    S = STRUCT_COLORS
+    rng = random.Random(8)
+    cv = Canvas(22, 16)
+    cv.shaded_blobs([(7, 9, 5), (14, 9, 5), (11, 7, 5), (11, 10, 4)],
+                    C["leaf_light"], C["leaf_mid"], C["leaf_dark"], rng)
+    for (x, y) in ((5, 7), (8, 10), (11, 5), (14, 8), (16, 11), (12, 12), (7, 12)):
+        cv.put(x, y, S["blossom_mid"])
+        cv.put(x + 1, y, S["blossom_light"])
+    cv.outline(C["leaf_outline"])
+    return cv.result()
+
+
+def prop_flowerbed():
+    C = PROP_COLORS
+    S = STRUCT_COLORS
+    cv = Canvas(16, 10)
+    cv.rect(0, 4, 16, 6, C["wood_lo"])
+    cv.rect(1, 5, 14, 4, h("7a5f40"))
+    for i, x in enumerate((2, 5, 8, 11, 13)):
+        col = [S["blossom_mid"], C["white"], C["yellow"], S["blossom_light"], C["blue"]][i % 5]
+        cv.rect(x, 2, 1, 4, C["grass_a"])
+        cv.put(x - 1, 1, col)
+        cv.put(x + 1, 1, col)
+        cv.put(x, 0, col)
+        cv.put(x, 2, col)
+        cv.put(x, 1, C["center"])
+    cv.outline(S["outline"])
+    return cv.result()
+
+
 def generate_props():
     """名前 → (w, h, px)。Godot 側のファイル名（prop_*.png）と一致させる。"""
     out = {}
@@ -517,6 +705,18 @@ def generate_props():
     out["prop_station"] = prop_station()
     out["prop_mushroom"] = prop_mushroom()
     out["prop_twig"] = prop_twig()
+    out["prop_fence_h"] = prop_fence_h()
+    out["prop_fence_post"] = prop_fence_post()
+    out["prop_lamp_post"] = prop_lamp_post()
+    out["prop_stump"] = prop_stump()
+    out["prop_tree_blossom"] = prop_tree_blossom()
+    out["prop_barrel"] = prop_barrel()
+    out["prop_crate"] = prop_crate()
+    out["prop_sign"] = prop_sign()
+    out["prop_bench"] = prop_bench()
+    out["prop_tall_grass"] = prop_tall_grass()
+    out["prop_bush_flower"] = prop_bush_flower()
+    out["prop_flowerbed"] = prop_flowerbed()
     return out
 
 
