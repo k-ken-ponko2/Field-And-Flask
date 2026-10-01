@@ -466,6 +466,40 @@ def prop_station():
     return cv.result()
 
 
+def prop_mushroom():
+    C = PROP_COLORS
+    cap = h("c9643c")
+    cap_hi = h("e8906a")
+    stem = h("efe6d2")
+    stem_lo = h("c9bda2")
+    cv = Canvas(11, 9)
+    # 大きいキノコ。
+    cv.rect(1, 2, 6, 3, cap)
+    cv.rect(2, 1, 4, 1, cap)
+    cv.rect(2, 2, 2, 1, cap_hi)
+    cv.put(5, 3, C["white"])
+    cv.rect(3, 5, 2, 4, stem)
+    cv.rect(4, 6, 1, 3, stem_lo)
+    # 小さいキノコ。
+    cv.rect(7, 5, 3, 2, cap)
+    cv.put(7, 5, cap_hi)
+    cv.rect(8, 7, 1, 2, stem)
+    cv.outline(h("5e3f23"))
+    return cv.result()
+
+
+def prop_twig():
+    C = PROP_COLORS
+    cv = Canvas(12, 5)
+    cv.rect(1, 2, 9, 1, C["wood_lo"])
+    cv.rect(3, 1, 3, 1, C["wood"])
+    cv.rect(7, 3, 2, 1, C["wood_lo"])
+    cv.put(9, 1, C["wood"])
+    cv.put(10, 2, C["wood"])
+    cv.put(0, 2, C["wood"])
+    return cv.result()
+
+
 def generate_props():
     """名前 → (w, h, px)。Godot 側のファイル名（prop_*.png）と一致させる。"""
     out = {}
@@ -481,6 +515,8 @@ def generate_props():
     out["prop_reed"] = prop_reed()
     out["prop_pebble"] = prop_pebble()
     out["prop_station"] = prop_station()
+    out["prop_mushroom"] = prop_mushroom()
+    out["prop_twig"] = prop_twig()
     return out
 
 
