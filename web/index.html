@@ -1,0 +1,149 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Field &amp; Flask — debug</title>
+<meta name="description" content="Field & Flask の開発確認ページ。ブラウザで動く Godot ビルド、HTML プロトタイプ、スクショ、スプライト一覧。">
+<style>
+  :root{
+    --bg:#e9ede7; --panel:#f5f8f2; --panel-2:#fdfefb; --ink:#1b211c; --muted:#5d675e;
+    --line:#d3dacf; --line-strong:#bcc6b6; --accent:#a86e18; --accent-soft:#efe2c8;
+    --mono:ui-monospace,"SF Mono","JetBrains Mono",Menlo,monospace;
+    --sans:system-ui,-apple-system,"Segoe UI",Roboto,"Hiragino Sans","Noto Sans JP",sans-serif;
+  }
+  @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+    --bg:#0e120e; --panel:#161b16; --panel-2:#1d231c; --ink:#e7ece5; --muted:#93a08f;
+    --line:#2b332b; --line-strong:#3a443a; --accent:#e0a34a; --accent-soft:#39301c;
+  }}
+  :root[data-theme="dark"]{--bg:#0e120e;--panel:#161b16;--panel-2:#1d231c;--ink:#e7ece5;--muted:#93a08f;--line:#2b332b;--line-strong:#3a443a;--accent:#e0a34a;--accent-soft:#39301c;}
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);line-height:1.55;-webkit-font-smoothing:antialiased;}
+  .wrap{max-width:1060px;margin:0 auto;padding:28px 16px 70px;}
+  header{display:flex;flex-wrap:wrap;align-items:baseline;gap:8px 16px;}
+  .eyebrow{font-family:var(--mono);font-size:.72rem;letter-spacing:.16em;text-transform:uppercase;color:var(--accent);}
+  h1{font-size:1.5rem;margin:2px 0 0;font-weight:650;letter-spacing:-.01em;}
+  .lead{color:var(--muted);font-size:.95rem;max-width:76ch;margin:10px 0 24px;}
+  .themetoggle{margin-left:auto;font-family:var(--mono);font-size:.72rem;color:var(--muted);cursor:pointer;border:1px solid var(--line-strong);border-radius:999px;padding:3px 10px;background:var(--panel);user-select:none;}
+  h2{font-size:1.12rem;margin:32px 0 12px;display:flex;align-items:center;gap:10px;}
+  h2 .num{font-family:var(--mono);font-size:.8rem;color:var(--accent);border:1px solid var(--accent);border-radius:6px;padding:1px 7px;}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px;}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:14px;display:flex;flex-direction:column;gap:8px;}
+  .card img{width:100%;border-radius:8px;border:1px solid var(--line);background:#1c1715;image-rendering:auto;}
+  .card .t{font-weight:600;}
+  .card .d{color:var(--muted);font-size:.86rem;}
+  .card .how{font-size:.84rem;background:var(--accent-soft);border-radius:8px;padding:6px 10px;}
+  .btn{display:inline-block;align-self:flex-start;margin-top:auto;background:var(--accent);color:#fff;text-decoration:none;font-weight:600;font-size:.9rem;padding:7px 14px;border-radius:999px;}
+  .btn.secondary{background:transparent;color:var(--accent);border:1px solid var(--accent);}
+  .row{display:flex;flex-wrap:wrap;gap:8px;}
+  ul.plain{list-style:none;padding:0;margin:0;display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:8px;}
+  ul.plain li{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:10px 12px;}
+  ul.plain a{color:var(--ink);text-decoration:none;font-weight:600;}
+  ul.plain .d{color:var(--muted);font-size:.84rem;display:block;}
+  .meta{font-family:var(--mono);font-size:.78rem;color:var(--muted);margin-top:36px;border-top:1px solid var(--line);padding-top:12px;}
+  .note{background:var(--accent-soft);border:1px dashed var(--accent);border-radius:10px;padding:10px 14px;font-size:.88rem;}
+  .shots img{width:100%;border-radius:10px;border:1px solid var(--line);}
+  .pixel{image-rendering:pixelated;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <div class="eyebrow">Field &amp; Flask · debug</div>
+      <h1>開発確認ページ</h1>
+    </div>
+    <span class="themetoggle" id="tt">◐ theme</span>
+  </header>
+  <p class="lead">
+    ブラウザで動く Godot ビルド（Web 書き出し）、設計用の HTML プロトタイプ、実機スクショ、ドット絵スプライトの一覧。
+    最新のコミットから GitHub Actions が自動でビルドしている。
+  </p>
+  <div class="note">
+    Godot のビルドは初回に約 45MB を読み込む。読み込み中は黒い画面にプログレスバーが出る。
+    音は出ない。キーボード操作のシーン（採取マップ）はキャンバスをクリックしてから操作する。
+  </div>
+
+  <h2><span class="num">1</span> ブラウザで遊ぶ（Godot Web ビルド）</h2>
+  <div class="grid">
+    <div class="card">
+      <img src="prototypes/screenshot-fire-lab-1-direct.png" alt="火ラボ ① 直火">
+      <div class="t">火ラボ ① 直火 — 天井 600℃</div>
+      <div class="d">石で囲った焚き火。タイミングよく薪を入れる。</div>
+      <div class="how">火の上を<b>クリック</b>。燃料ゲージの枠内（熾火）でドットの輪が回ったときが好機。</div>
+      <a class="btn" href="play/?scene=fire_lab_direct">開く</a>
+    </div>
+    <div class="card">
+      <img src="prototypes/screenshot-fire-lab-2-fan.png" alt="火ラボ ② 囲い炉">
+      <div class="t">火ラボ ② 囲い炉 — 天井 900℃</div>
+      <div class="d">土の囲いと煙突。うちわであおぐ。</div>
+      <div class="how">火の上で<b>マウスを左右に動かす</b>。手を止めると火勢が落ちる。</div>
+      <a class="btn" href="play/?scene=fire_lab_fan">開く</a>
+    </div>
+    <div class="card">
+      <img src="prototypes/screenshot-fire-lab-3-bellows.png" alt="火ラボ ③ ふいご炉">
+      <div class="t">火ラボ ③ ふいご炉 — 天井 1300℃</div>
+      <div class="d">粘土のドーム炉と羽口。ふいごを踏み続ける。</div>
+      <div class="how">火の上で<b>クリックを押し続ける</b>。短い押下では弱い。</div>
+      <a class="btn" href="play/?scene=fire_lab_bellows">開く</a>
+    </div>
+    <div class="card">
+      <img src="prototypes/screenshot-reaction-lab.png" alt="反応マップ">
+      <div class="t">反応マップ — 温度 × 濃度 / pH</div>
+      <div class="d">酸・塩基系マップ。加熱／加水／蒸留／中和／素材投入でマーカーを動かし、目標領域へ。</div>
+      <div class="how">右のボタンで操作。暴走域に入るとバッチ全損。</div>
+      <a class="btn" href="play/?scene=reaction_lab">開く</a>
+    </div>
+    <div class="card">
+      <img src="prototypes/screenshot-field.png" alt="採取マップ">
+      <div class="t">採取マップ</div>
+      <div class="d">手続き生成の草原を歩く。木や岩との衝突、カメラ追従。</div>
+      <div class="how">キャンバスをクリックしてから <b>WASD / 矢印キー</b> で移動。</div>
+      <a class="btn" href="play/?scene=field">開く</a>
+    </div>
+    <div class="card">
+      <div class="t">デバッグメニュー</div>
+      <div class="d">全シーンを一覧から開く。各シーンの左上「← メニュー」で戻れる。</div>
+      <div class="how">URL に <code>?scene=&lt;id&gt;</code> を付けると直接開く（id: fire_lab_direct / fire_lab_fan / fire_lab_bellows / fire_lab / reaction_lab / field）。</div>
+      <a class="btn secondary" href="play/">開く</a>
+    </div>
+  </div>
+
+  <h2><span class="num">2</span> HTML プロトタイプ（設計の体感版）</h2>
+  <ul class="plain">
+    <li><a href="prototypes/fanning.html">fanning.html</a><span class="d">「あおぐ」送風の直接操作。素手→ふいご→送風機で天井と手触りが変わる</span></li>
+    <li><a href="prototypes/heat-tiers.html">heat-tiers.html</a><span class="d">熱源4段階の温度ラダーと「段々楽になる」の図解</span></li>
+    <li><a href="prototypes/reaction-lab.html">reaction-lab.html</a><span class="d">反応マップのブラウザ版デモ</span></li>
+    <li><a href="prototypes/workbench.html">workbench.html</a><span class="d">発見型ワークベンチ（状態×道具×動作）</span></li>
+    <li><a href="prototypes/craft-ui.html">craft-ui.html</a><span class="d">クラフト UI の原型</span></li>
+  </ul>
+
+  <h2><span class="num">3</span> ドット絵スプライト</h2>
+  <div class="shots grid">
+    <div class="card"><div class="t">火ラボ用（炎・煙・薪・石・うちわ・炉・ふいご）</div><img class="pixel" src="prototypes/fire-sprites-preview.png" alt="火ラボ用スプライト一覧"><div class="d">生成: <code>python3 tools/gen_fire_sprites.py</code></div></div>
+    <div class="card"><div class="t">キャラ・素材アイコン</div><img class="pixel" src="prototypes/sprites-preview.png" alt="キャラと素材アイコン"><div class="d">生成: <code>python3 tools/gen_sprites.py</code></div><img src="prototypes/walk-preview.gif" alt="歩行アニメ" style="width:auto;max-width:100%"></div>
+  </div>
+
+  <h2><span class="num">4</span> 設計ドキュメント</h2>
+  <ul class="plain">
+    <li><a href="https://github.com/k-ken-ponko2/Field-And-Flask/blob/{{BRANCH}}/docs/design/concept-v2.md">concept-v2.md</a><span class="d">コンセプト設計書 v2</span></li>
+    <li><a href="https://github.com/k-ken-ponko2/Field-And-Flask/blob/{{BRANCH}}/docs/design/heat-tiers.md">heat-tiers.md</a><span class="d">熱源ツリーと仮3段階の実装</span></li>
+    <li><a href="https://github.com/k-ken-ponko2/Field-And-Flask/blob/{{BRANCH}}/docs/design/tactile-crafting.md">tactile-crafting.md</a><span class="d">タクタイル・クラフト原則</span></li>
+    <li><a href="https://github.com/k-ken-ponko2/Field-And-Flask/blob/{{BRANCH}}/docs/design/reaction-map.md">reaction-map.md</a><span class="d">反応マップ本体</span></li>
+  </ul>
+
+  <div class="meta">
+    build: {{COMMIT}} · branch: {{BRANCH}} · {{DATE}} · Godot {{GODOT}} (Web, single-threaded, Compatibility)
+    · <a href="https://github.com/k-ken-ponko2/Field-And-Flask">repository</a>
+  </div>
+</div>
+<script>
+  document.getElementById('tt').addEventListener('click', function () {
+    var c = document.documentElement.getAttribute('data-theme');
+    var dark = matchMedia('(prefers-color-scheme: dark)').matches;
+    var n = c === 'dark' ? 'light' : (c === 'light' ? 'dark' : (dark ? 'light' : 'dark'));
+    document.documentElement.setAttribute('data-theme', n);
+  });
+</script>
+</body>
+</html>

@@ -13,6 +13,7 @@ config_version=5
 config/name="Field & Flask"
 config/description="石器時代同然の世界で素材を探し、化学の力で文明の道具を取り戻す科学クラフトゲーム。"
 run/main_scene="res://presentation/field/field.tscn"
+run/main_scene.web="res://presentation/debug/debug_menu.tscn"
 config/features=PackedStringArray("4.7")
 
 [display]

@@ -35,6 +35,20 @@ docs/design/     ← 設計ドキュメント
 「純度72%の硫酸で反応Xは成立するか」を **UIを起動せず** 検証できることが、
 数十時間規模のバランス調整では決定的な差になる。
 
+## ブラウザで確認する（GitHub Pages）
+
+**https://k-ken-ponko2.github.io/Field-And-Flask/** — 開発確認（debug）ページ。
+Godot の Web 書き出し（火ラボ3段階・反応マップ・採取マップ）をブラウザで動かせるほか、
+HTML プロトタイプ・実機スクショ・スプライト一覧をまとめてある。
+`main` と `claude/**` への push で `.github/workflows/pages.yml` が自動ビルド・デプロイする
+（初回はリポジトリ設定 › Pages の Source を「GitHub Actions」にする必要がある）。
+
+- 入口の HTML は `web/index.html`、Web ビルドの起動シーンは `presentation/debug/debug_menu.tscn`
+  （`project.godot` の `run/main_scene.web` で Web のときだけ差し替え）
+- `play/?scene=<id>` で各シーンを直接開ける（fire_lab_direct / fire_lab_fan / fire_lab_bellows / fire_lab / reaction_lab / field）
+- ローカルで書き出すには Web 用エクスポートテンプレートを入れて
+  `godot --headless --path . --export-release "Web" build/web/index.html`
+
 ## セットアップ
 
 1. [Godot 4.7](https://godotengine.org/) を入手する（MIT・完全無料）。

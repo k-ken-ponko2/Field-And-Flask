@@ -168,10 +168,10 @@ func _refresh() -> void:
 	lines.append("")
 	for g in GOALS:
 		var reachable: bool = g["low"] <= sim.source.max_temperature
-		var mark := "●" if sim.in_band(g["low"], g["high"]) else ("○" if reachable else "✕")
+		var mark := "●" if sim.in_band(g["low"], g["high"]) else ("○" if reachable else "×")
 		var note := "" if reachable else "（届かない）"
 		lines.append("%s %s  %d〜%d℃%s" % [mark, g["label"], int(g["low"]), int(g["high"]), note])
-	lines.append("[color=#8c8070]● 温度帯の中 ／ ○ 届く ／ ✕ 届かない[/color]")
+	lines.append("[color=#8c8070]● 温度帯の中 ／ ○ 届く ／ × 届かない[/color]")
 	readout.text = "\n".join(lines)
 
 func _section(text: String) -> Label:

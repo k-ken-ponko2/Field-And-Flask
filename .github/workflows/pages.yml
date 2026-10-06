@@ -1,0 +1,124 @@
+name: Pages
+
+# Godot の Web 書き出しと debug ページを GitHub Pages に公開する。
+# https://k-ken-ponko2.github.io/Field-And-Flask/ で確認できる。
+# Pages はスレッド無効（SharedArrayBuffer 不要）の Web ビルドなので、COOP/COEP ヘッダなしで動く。
+
+on:
+  push:
+    branches: ["main", "claude/**"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+env:
+  GODOT_VERSION: "4.7-stable"
+  # エクスポートテンプレートの置き場（バージョン表記はドット区切り）。
+  TEMPLATE_DIR: "4.7.stable"
+
+jobs:
+  build:
+    name: export web build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Cache Godot binary
+        id: cache-godot
+        uses: actions/cache@v4
+        with:
+          path: ~/godot
+          key: godot-${{ env.GODOT_VERSION }}-linux-x86_64
+
+      - name: Download Godot ${{ env.GODOT_VERSION }}
+        if: steps.cache-godot.outputs.cache-hit != 'true'
+        run: |
+          set -euo pipefail
+          mkdir -p ~/godot
+          url="https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}/Godot_v${GODOT_VERSION}_linux.x86_64.zip"
+          curl -fsSL -o /tmp/godot.zip "$url"
+          unzip -o -q /tmp/godot.zip -d ~/godot
+          mv ~/godot/Godot_v${GODOT_VERSION}_linux.x86_64 ~/godot/godot
+          chmod +x ~/godot/godot
+
+      - name: Cache web export templates
+        id: cache-templates
+        uses: actions/cache@v4
+        with:
+          path: ~/.local/share/godot/export_templates/${{ env.TEMPLATE_DIR }}
+          key: godot-web-templates-${{ env.GODOT_VERSION }}
+
+      - name: Download web export templates
+        if: steps.cache-templates.outputs.cache-hit != 'true'
+        run: |
+          set -euo pipefail
+          url="https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}/Godot_v${GODOT_VERSION}_export_templates.tpz"
+          curl -fsSL -o /tmp/templates.tpz "$url"
+          dest="$HOME/.local/share/godot/export_templates/${TEMPLATE_DIR}"
+          mkdir -p "$dest"
+          # tpz は zip。Web 用だけ取り出す（全体は約 1GB）。
+          python3 - "$dest" <<'PY'
+          import sys, zipfile, os
+          dest = sys.argv[1]
+          with zipfile.ZipFile("/tmp/templates.tpz") as z:
+              for n in z.namelist():
+                  if n.startswith("templates/web_") and n.endswith(".zip"):
+                      with z.open(n) as src, open(os.path.join(dest, os.path.basename(n)), "wb") as out:
+                          out.write(src.read())
+          print(sorted(os.listdir(dest)))
+          PY
+          rm /tmp/templates.tpz
+
+      - name: Import project
+        run: ~/godot/godot --headless --path . --import
+
+      - name: Export Web
+        run: |
+          set -euo pipefail
+          mkdir -p build/web
+          ~/godot/godot --headless --path . --export-release "Web" build/web/index.html
+          test -s build/web/index.wasm
+
+      - name: Assemble site
+        run: |
+          set -euo pipefail
+          mkdir -p _site/play _site/prototypes
+          cp -r build/web/. _site/play/
+          cp docs/prototypes/*.html docs/prototypes/*.png docs/prototypes/*.gif _site/prototypes/ 2>/dev/null || true
+          sed -e "s|{{COMMIT}}|${GITHUB_SHA::7}|g" \
+              -e "s|{{BRANCH}}|${GITHUB_REF_NAME}|g" \
+              -e "s|{{DATE}}|$(date -u +%Y-%m-%dT%H:%MZ)|g" \
+              -e "s|{{GODOT}}|${GODOT_VERSION}|g" \
+              web/index.html > _site/index.html
+          touch _site/.nojekyll
+          du -sh _site
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+  deploy:
+    name: deploy to GitHub Pages
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
+        with:
+          enablement: true
+
+      - name: Deploy
+        id: deployment
+        uses: actions/deploy-pages@v4
