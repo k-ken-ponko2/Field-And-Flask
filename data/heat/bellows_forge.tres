@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="HeatSource" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://core/heat/heat_source.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = &"bellows_forge"
+display_name = "ふいご炉"
+tier = 3
+max_temperature = 1300.0
+input_mode = 2
+input_gain = 1.5
+idle_drive = 0.1
+drive_decay = 1.2
+fuel_burn_rate = 0.02
+drive_burn_rate = 0.12
+response_time = 1.1
+tech_id = &"bellows"

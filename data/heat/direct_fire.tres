@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="HeatSource" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://core/heat/heat_source.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = &"direct_fire"
+display_name = "直火"
+tier = 1
+max_temperature = 600.0
+input_mode = 0
+input_gain = 1.0
+idle_drive = 0.15
+drive_decay = 0.35
+fuel_burn_rate = 0.03
+drive_burn_rate = 0.10
+response_time = 1.1
+tech_id = &""

@@ -70,9 +70,66 @@ HeatSource (Resource, ①〜④)
 
 ---
 
+## 6. 仮実装：3段階と操作（実装済み）
+
+4段階の最終形に向けた**仮の3段階**を `core/heat/` と `data/heat/` に用意した。
+段階ごとに「火力を上げる操作」が違い、上の段ほど手仕事が楽になる。
+
+| 段階 | 熱源 | 天井 | 操作（タクタイル） | ゲームとしての手触り |
+|---|---|---|---|---|
+| 1 | 直火 `direct_fire` | 600℃ | **タイミングよく薪を入れる（クリック）** | 燃料ゲージが「熾火」の帯に入った瞬間に入れると火勢が最大。早いと窒息、消えてからだと点け直し |
+| 2 | 囲い炉 `enclosed_fire` | 900℃ | **あおぐ（マウスのスライド）** | 動かした距離ぶん火勢が上がり、手を止めると衰える |
+| 3 | ふいご炉 `bellows_forge` | 1300℃ | **ふいごを押し続ける（クリック長押し）** | 押している時間で火勢が積み上がる。短い押下では弱い |
+
+> ④ 耐火煉瓦＋強制送風（1600℃・レバーで自動）は未実装。3段階が遊べる手触りになってから足す。
+
+### データモデル（`HeatSource`）
+
+```
+HeatSource (Resource)        data/heat/*.tres
+  id / display_name / tier
+  max_temperature   … 温度の天井（℃）。ハード：FireSim の温度も ReactionSim.heat() もこれを超えない
+  input_mode        … FEED_TIMING | FAN_SLIDE | BELLOWS_HOLD（presentation はこれを見てジェスチャを選ぶ）
+  input_gain        … 操作 1 単位が火勢に与える量（あおぐ: 距離 1 単位 / ふいご: 1 秒）
+  drive_decay       … 手を止めたときの火勢の衰え（1 秒あたり）
+  idle_drive        … 燃料がある限り保たれる火勢の下限（何もしなくても燃えている分）
+  fuel_burn_rate / drive_burn_rate … 燃料消費（待機分 / 火勢に比例する分）
+  response_time     … 温度が平衡値へ寄る時間（秒）
+  tech_id           … 解禁条件
+```
+
+### 火のモデル（`FireSim`、純粋ロジック）
+
+```
+drive（火勢 0〜1） : 操作で上がり、drive_decay で idle_drive まで衰える
+fuel（燃料 0〜1）  : (fuel_burn_rate + drive × drive_burn_rate) × dt で減る。尽きると火が消える
+平衡温度           : 外気温 + (天井 − 外気温) × drive^0.6   ※ 消えていれば天井＝外気温
+temperature        : 平衡温度へ response_time で追従し、max_temperature でハードクランプ
+```
+
+① の薪入れは**タイミング判定**：燃料 ≤ 0.45（熾火）なら `good`（火勢 1.0）、
+それより多ければ `early`（火勢 ×0.4＝窒息）、消えた後なら `late`（火勢 0.25＝点け直し）。
+presentation 層（`presentation/heat/fire_view.gd`）はクリック／スライド距離／押下時間を数値にして流すだけ。
+
+### 反応マップとの接続
+
+`ReactionMap.temperature_range`（縦軸の下端・上端が何℃か、仮に 20〜1000℃）で
+熱源の天井（℃）をマップ座標へ写し、`ReactionSim.set_heat_source()` が `heat_ceiling` に設定する。
+`heat()` はそれより上へ行けない（冷却は自由、天井より上に居た場合は現状維持）。熱源未設定なら従来通り制限なし。
+
+### 試すには
+
+`presentation/heat/fire_lab.tscn` を実行（F6）。3段階を切り替えて、クリック／スライド／長押しで温度を上げる。
+`docs/prototypes/screenshot-fire-lab.png` が実スクショ。検証は `core/__tests__/run_tests.gd` の
+`_test_fire_sim` / `_test_heat_ceiling` / `_test_heat_data`。
+
+---
+
 ## 参照
 
 - `docs/prototypes/heat-tiers.html` — 温度ラダーの図解
 - `docs/prototypes/fanning.html` — 「あおぐ」送風の直接操作
 - `docs/design/tactile-crafting.md` — タクタイル・クラフト原則
 - `docs/design/reaction-map.md` — 反応マップ本体（温度軸）
+- `core/heat/heat_source.gd` / `core/heat/fire_sim.gd` — 仮実装（§6）
+- `presentation/heat/fire_lab.tscn` — 火ラボ（3段階を触れる仮UI）

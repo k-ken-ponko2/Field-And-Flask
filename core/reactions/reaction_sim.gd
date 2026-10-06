@@ -42,6 +42,9 @@ var path_length: float = 0.0
 var batch_lost: bool = false
 ## この試行で設備が受けたダメージ（0〜）。
 var equipment_damage: float = 0.0
+## 加熱で到達できる縦軸座標の上限（熱源の天井、`docs/design/heat-tiers.md`）。
+## INF＝熱源未設定で制限なし。set_heat_source() で設定する。
+var heat_ceiling: float = INF
 
 ## 実行した操作の記録（設計書 §7 の実験ノート＝経路の保存の下地）。
 ## 各要素は { "op": StringName, "amount": float } か { "op": &"material", "material_id": StringName }。
@@ -56,10 +59,21 @@ func _init(reaction_map: ReactionMap, start: Vector2 = Vector2.ZERO) -> void:
 	position = _clamp_to_bounds(start)
 	_start_position = position
 
-## 加熱: 上へ。
+## 熱源を据える。その天井（℃）をマップ座標に写し、加熱の上限にする（ハード天井）。
+## null を渡すと制限なしに戻る。
+func set_heat_source(source: HeatSource) -> void:
+	if source == null or map == null:
+		heat_ceiling = INF
+		return
+	heat_ceiling = map.temperature_to_y(source.max_temperature)
+
+## 加熱: 上へ。熱源の天井より上には行けない（既に天井より上にいる場合はそのまま）。
 func heat(amount: float) -> void:
 	operations.append({"op": &"heat", "amount": amount})
-	_move_to(position + Vector2(0.0, amount))
+	var target_y := position.y + amount
+	if amount > 0.0:
+		target_y = minf(target_y, maxf(heat_ceiling, position.y))
+	_move_to(Vector2(position.x, target_y))
 
 ## 加水: 左へ。濃度が下がるので pH は中性へ寄る。
 func add_water(amount: float) -> void:

@@ -20,12 +20,14 @@
 core/            ← 副作用なし・エンジン非依存の純粋ロジック
   materials/       素材定義・純度計算
   reactions/       反応マップ・領域・シミュレータ
+  heat/            熱源・火のシミュレータ
   calendar/        季節・カレンダー
   __tests__/       ヘッドレステスト
 presentation/    ← エンジン依存（描画・UI）。core を呼ぶだけ
 data/            ← データ駆動の .tres（素材・反応マップの実データ）
   materials/
   reactions/
+  heat/            熱源3段階の実データ
 docs/design/     ← 設計ドキュメント
 ```
 
@@ -46,6 +48,8 @@ docs/design/     ← 設計ドキュメント
 | W / A / S / D または 矢印キー | 移動（8方向） |
 
 `presentation/main.tscn` は core ロジックのヘッドレスデモ（別シーン）。
+`presentation/reaction/reaction_lab.tscn` は反応マップ、`presentation/heat/fire_lab.tscn` は火ラボ
+（熱源3段階をクリック／スライド／長押しで操作）。各シーンを開いて F6 で起動する。
 
 ## テストの実行
 
@@ -83,6 +87,8 @@ unzip godot.zip
     木・岩・茂み・草、池・小道、ビネット。将来は `TileMapLayer` + `TileSet` や本物の
     スプライトに差し替え可能（設計書 §8）
 - 反応マップ上のマーカーを操作（加熱＝上／加水＝左／蒸留＝右／素材投入＝跳躍）
+- **熱源の仮3段階**（直火＝薪のタイミング／囲い炉＝あおぐ／ふいご炉＝長押し）と、
+  天井温度による加熱のハードクランプ（`docs/design/heat-tiers.md` §6）
 - 領域判定（目標・暴走・未踏）と暴走域の検出
 - 経路の効率が収率になるモデル（遠回り・蒸留で収率低下）
 - 純度の混合・精製計算

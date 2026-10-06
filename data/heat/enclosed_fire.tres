@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="HeatSource" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://core/heat/heat_source.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = &"enclosed_fire"
+display_name = "囲い炉（あおぐ）"
+tier = 2
+max_temperature = 900.0
+input_mode = 1
+input_gain = 0.6
+idle_drive = 0.2
+drive_decay = 0.9
+fuel_burn_rate = 0.02
+drive_burn_rate = 0.10
+response_time = 1.1
+tech_id = &"clay_enclosure"

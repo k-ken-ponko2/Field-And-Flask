@@ -21,6 +21,9 @@ func _initialize() -> void:
 	_test_recipe_resolver()
 	_test_recipe_data()
 	_test_workbench()
+	_test_fire_sim()
+	_test_heat_ceiling()
+	_test_heat_data()
 	_test_calendar()
 	print("========================================")
 	print("Field & Flask core tests: passed=%d failed=%d" % [_passed, _failed])
@@ -396,6 +399,127 @@ func _test_workbench() -> void:
 	_ok(note.size() == 4, "4工程を発見")
 	_ok(note[0]["process_id"] == &"pick" and note[3]["process_id"] == &"edge", "発見順が保存される")
 	_ok(note[1]["tool"] == &"hammer" and note[1]["motion"] == &"strike", "道具と動作が記録される")
+
+# --- 熱源 ---------------------------------------------------------------------
+
+func _make_heat_source(mode: HeatSource.InputMode, ceiling: float, decay: float) -> HeatSource:
+	var h := HeatSource.new()
+	h.id = &"test"; h.max_temperature = ceiling; h.input_mode = mode
+	h.input_gain = 1.0; h.drive_decay = decay; h.idle_drive = 0.15
+	h.fuel_burn_rate = 0.02; h.drive_burn_rate = 0.1; h.response_time = 1.0
+	return h
+
+func _run_fire(sim: FireSim, seconds: float, per_tick: Callable = Callable()) -> void:
+	var dt := 0.05
+	var t := 0.0
+	while t < seconds:
+		if per_tick.is_valid():
+			per_tick.call(dt)
+		sim.tick(dt)
+		t += dt
+
+## 熾火になったら薪を足す（「タイミングよく薪を入れる」の模倣）。
+func _feed_on_embers(fire: FireSim) -> void:
+	if fire.fuel <= FireSim.FEED_WINDOW_HIGH:
+		fire.feed()
+
+func _test_fire_sim() -> void:
+	# ① 直火：タイミングよく薪を入れる（クリック）。判定は燃料残量。
+	var fire := FireSim.new(_make_heat_source(HeatSource.InputMode.FEED_TIMING, 600.0, 0.35), 0.3)
+	_ok(not fire.fan(1.0) and not fire.pump(1.0), "直火はあおぐ／ふいごを受け付けない")
+	_ok(is_equal_approx(fire.drive, 0.15), "燃料があれば弱く燃えている（idle_drive）")
+	var r1 := fire.feed()
+	_ok(r1["ok"] and r1["timing"] == &"good", "熾火に薪＝good で火勢最大")
+	_ok(is_equal_approx(fire.drive, 1.0), "good の火勢は 1.0")
+	_run_fire(fire, 2.0)
+	_ok(fire.temperature > 300.0, "薪を入れた直後は温度が上がる (%.0f℃)" % fire.temperature)
+	_ok(fire.temperature <= 600.0, "直火は 600℃ を超えない")
+	var r2 := fire.feed()
+	_ok(r2["timing"] == &"early", "燃えている最中の薪＝early（窒息）")
+	_ok(fire.drive < 0.5, "early で火勢が落ちる")
+	# 熾火のたびに薪を足し続ければ温度を保てる。
+	_run_fire(fire, 10.0, func(_dt): _feed_on_embers(fire))
+	_ok(fire.temperature > 150.0 and fire.temperature <= 600.0, "薪を保てば温度を保てる (%.0f℃)" % fire.temperature)
+	# 放置すると燃料が尽きて外気温へ戻る。
+	_run_fire(fire, 60.0)
+	_ok(fire.is_out() and is_equal_approx(fire.drive, 0.0), "放置すると火が消える")
+	_ok(fire.temperature < 30.0, "消えた火は外気温へ (%.0f℃)" % fire.temperature)
+	var r3 := fire.feed()
+	_ok(r3["timing"] == &"late" and is_equal_approx(fire.drive, FireSim.RELIGHT_DRIVE), "消えてからの薪＝late（点け直しは弱い）")
+
+	# ② 囲い炉：あおぐ（スライド距離）。止めると衰える。
+	var hearth := FireSim.new(_make_heat_source(HeatSource.InputMode.FAN_SLIDE, 900.0, 0.9), 1.0)
+	_ok(not hearth.feed()["ok"], "囲い炉は薪のタイミング操作を受け付けない")
+	_run_fire(hearth, 6.0, func(dt): hearth.fan(dt * 3.0))
+	_ok(hearth.drive > 0.9, "あおぎ続けると火勢が最大近くになる (%.2f)" % hearth.drive)
+	_ok(hearth.temperature > 700.0 and hearth.temperature <= 900.0, "囲い炉は 900℃ 天井の範囲で高温に (%.0f℃)" % hearth.temperature)
+	var before := hearth.temperature
+	_run_fire(hearth, 3.0)
+	_ok(hearth.drive <= 0.16 and hearth.temperature < before, "手を止めると火勢が下限まで落ち温度も下がる")
+
+	# ③ ふいご炉：押し続ける（長押し）。短い押下では弱い。
+	var forge := FireSim.new(_make_heat_source(HeatSource.InputMode.BELLOWS_HOLD, 1300.0, 1.2), 1.0)
+	forge.pump(0.1)
+	forge.tick(0.05)
+	_ok(forge.drive < 0.4, "一瞬押しただけでは火勢が弱い")
+	_run_fire(forge, 6.0, func(dt): forge.pump(dt * 2.0))
+	_ok(forge.drive > 0.9, "押し続けると火勢が最大近くになる")
+	_ok(forge.temperature > 1000.0 and forge.temperature <= 1300.0, "ふいご炉は 1300℃ 天井の範囲で高温に (%.0f℃)" % forge.temperature)
+	_ok(forge.operations.size() > 0 and forge.operations[0]["op"] == &"pump", "操作が記録される")
+
+func _test_heat_ceiling() -> void:
+	var map := ReactionMap.new()
+	map.bounds = Rect2(0, 0, 10, 10)
+	map.temperature_range = Vector2(20.0, 1000.0)
+	_ok(is_equal_approx(map.temperature_to_y(20.0), 0.0) and is_equal_approx(map.temperature_to_y(1000.0), 10.0), "℃→座標の両端")
+	_ok(is_equal_approx(map.y_to_temperature(5.0), 510.0), "座標→℃")
+
+	var direct := HeatSource.new()
+	direct.max_temperature = 600.0
+	var expected_ceiling := map.temperature_to_y(600.0)
+
+	# 熱源なし＝従来通り、マップ上端まで上がる。
+	var free := ReactionSim.new(map, Vector2(2, 2))
+	free.heat(100.0)
+	_ok(is_equal_approx(free.position.y, 10.0), "熱源未設定なら制限なし")
+
+	# 直火＝600℃ の天井でハードクランプ。
+	var limited := ReactionSim.new(map, Vector2(2, 2))
+	limited.set_heat_source(direct)
+	limited.heat(100.0)
+	_ok(is_equal_approx(limited.position.y, expected_ceiling), "直火の天井でクランプ (y=%.2f)" % limited.position.y)
+	limited.heat(1.0)
+	_ok(is_equal_approx(limited.position.y, expected_ceiling), "天井に居ても更に上がらない")
+	limited.heat(-1.0)
+	_ok(is_equal_approx(limited.position.y, expected_ceiling - 1.0), "冷却は天井に関係なく効く")
+	_ok(is_equal_approx(limited.path_length, expected_ceiling - 2.0 + 1.0), "クランプ後の経路長は実移動ぶんだけ")
+
+	# 天井より上にいる状態で据え替えても、引きずり下ろさない。
+	var high := ReactionSim.new(map, Vector2(2, 9))
+	high.set_heat_source(direct)
+	high.heat(0.5)
+	_ok(is_equal_approx(high.position.y, 9.0), "天井より上にいる場合は現状維持")
+	high.set_heat_source(null)
+	high.heat(0.5)
+	_ok(is_equal_approx(high.position.y, 9.5), "null で制限解除")
+
+func _test_heat_data() -> void:
+	var expected := {
+		"direct_fire": [1, 600.0, HeatSource.InputMode.FEED_TIMING],
+		"enclosed_fire": [2, 900.0, HeatSource.InputMode.FAN_SLIDE],
+		"bellows_forge": [3, 1300.0, HeatSource.InputMode.BELLOWS_HOLD],
+	}
+	var prev_ceiling := 0.0
+	for id in expected:
+		var h: HeatSource = load("res://data/heat/%s.tres" % id)
+		_ok(h != null, "data/heat/%s.tres を読める" % id)
+		if h == null:
+			continue
+		var e: Array = expected[id]
+		_ok(h.id == StringName(id) and h.tier == e[0], "%s: id と段階" % id)
+		_ok(is_equal_approx(h.max_temperature, e[1]) and h.input_mode == e[2], "%s: 天井と操作" % id)
+		_ok(h.max_temperature > prev_ceiling, "%s: 上の段階ほど天井が高い" % id)
+		prev_ceiling = h.max_temperature
 
 # --- カレンダー -------------------------------------------------------------
 
