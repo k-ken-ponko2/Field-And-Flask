@@ -49,7 +49,8 @@ docs/design/     ← 設計ドキュメント
 
 `presentation/main.tscn` は core ロジックのヘッドレスデモ（別シーン）。
 `presentation/reaction/reaction_lab.tscn` は反応マップ、`presentation/heat/fire_lab.tscn` は火ラボ
-（熱源3段階をクリック／スライド／長押しで操作）。各シーンを開いて F6 で起動する。
+（熱源3段階。直火＝クリックで薪、囲い炉＝スライドであおぐ、ふいご炉＝長押し。段階ごとに UI が変わる）。
+各シーンを開いて F6 で起動する。
 
 ## テストの実行
 

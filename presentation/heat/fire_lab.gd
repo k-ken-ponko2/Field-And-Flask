@@ -4,11 +4,15 @@
 ##   ① 直火        … タイミングよく薪を入れる（クリック）
 ##   ② 囲い炉      … あおぐ（マウスのスライド）
 ##   ③ ふいご炉    … ふいごを押し続ける（クリック長押し）
-## ロジックは core（FireSim / HeatSource）。ここは配線と表示のみ。
+## 段階ごとに UI（FireView の派生）を差し替える。ロジックは core（FireSim / HeatSource）。
 ##
 ## 実行: res://presentation/heat/fire_lab.tscn を開いて実行（F6）。
+##       fire_lab_direct / fire_lab_fan / fire_lab_bellows.tscn は各段階を最初から開く。
 class_name FireLab
 extends Control
+
+## 起動時に選ぶ段階（0=直火, 1=囲い炉, 2=ふいご炉）。
+@export var initial_tier: int = 0
 
 const SOURCE_IDS := ["direct_fire", "enclosed_fire", "bellows_forge"]
 const HINTS := {
@@ -26,6 +30,7 @@ const GOALS := [
 var sources: Array[HeatSource] = []
 var sim: FireSim
 var view: FireView
+var firecard: PanelContainer
 var readout: RichTextLabel
 var hint: Label
 var feedback: Label
@@ -42,11 +47,29 @@ func _ready() -> void:
 		if h != null:
 			sources.append(h)
 	_build_ui()
-	_select(0)
+	_select(clampi(initial_tier, 0, sources.size() - 1))
+
+## 段階の操作に合った UI を作る。
+func _make_view(mode: HeatSource.InputMode) -> FireView:
+	match mode:
+		HeatSource.InputMode.FAN_SLIDE:
+			return FanFireView.new()
+		HeatSource.InputMode.BELLOWS_HOLD:
+			return BellowsFireView.new()
+		_:
+			return DirectFireView.new()
 
 func _select(index: int) -> void:
 	var source := sources[index]
 	sim = FireSim.new(source, 0.6)
+	if view != null:
+		view.queue_free()
+	view = _make_view(source.input_mode)
+	view.custom_minimum_size = Vector2(440, 440)
+	view.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	view.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	view.fed.connect(_on_fed)
+	firecard.add_child(view)
 	view.setup(sim)
 	hint.text = HINTS.get(source.input_mode, "")
 	for i in _tier_buttons.size():
@@ -77,16 +100,10 @@ func _build_ui() -> void:
 	root.add_theme_constant_override("separation", 18)
 	outer.add_child(root)
 
-	var firecard := PanelContainer.new()
+	firecard = PanelContainer.new()
 	firecard.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	firecard.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	root.add_child(firecard)
-	view = FireView.new()
-	view.custom_minimum_size = Vector2(440, 440)
-	view.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	view.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	view.fed.connect(_on_fed)
-	firecard.add_child(view)
 
 	var concard := PanelContainer.new()
 	concard.custom_minimum_size = Vector2(360, 0)

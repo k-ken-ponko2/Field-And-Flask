@@ -117,11 +117,24 @@ presentation 層（`presentation/heat/fire_view.gd`）はクリック／スラ�
 熱源の天井（℃）をマップ座標へ写し、`ReactionSim.set_heat_source()` が `heat_ceiling` に設定する。
 `heat()` はそれより上へ行けない（冷却は自由、天井より上に居た場合は現状維持）。熱源未設定なら従来通り制限なし。
 
+### 段階ごとの UI（仮）
+
+段階ごとに見た目と操作の手がかりが違うので、ビューを分けている（`presentation/heat/`）。
+共通部（炎・燃料ゲージ・温度）は `fire_view.gd`、段階固有は派生クラス。
+
+| 段階 | ビュー | 画面にあるもの | 操作の手がかり |
+|---|---|---|---|
+| 1 直火 | `direct_fire_view.gd` | 石で囲った焚き火・脇の薪の山・クリックで薪が飛ぶ | 燃料ゲージの熾火帯、火を囲むリングが好機に脈打つ、「今だ！／まだ燃えている／点け直し」の一言、結果（いい頃合い／窒息） |
+| 2 囲い炉 | `fan_fire_view.gd` | 土の囲いと煙突・マウスに追従するうちわ・風の筋・煙 | 右端の「風」メーター（火勢）、「もっと！／いい風だ」の一言 |
+| 3 ふいご炉 | `bellows_fire_view.gd` | 粘土の炉・羽口・押すと縮むふいご・噴き出す空気 | 押し込みの輪ゲージ、「押し続けている… 火勢 n%」の一言 |
+
+実スクショ: `docs/prototypes/screenshot-fire-lab-1-direct.png` / `-2-fan.png` / `-3-bellows.png`。
+
 ### 試すには
 
-`presentation/heat/fire_lab.tscn` を実行（F6）。3段階を切り替えて、クリック／スライド／長押しで温度を上げる。
-`docs/prototypes/screenshot-fire-lab.png` が実スクショ。検証は `core/__tests__/run_tests.gd` の
-`_test_fire_sim` / `_test_heat_ceiling` / `_test_heat_data`。
+`presentation/heat/fire_lab.tscn` を実行（F6）。右のボタンで3段階を切り替え、クリック／スライド／長押しで温度を上げる。
+各段階を最初から開くシーン: `fire_lab_direct.tscn` / `fire_lab_fan.tscn` / `fire_lab_bellows.tscn`。
+検証は `core/__tests__/run_tests.gd` の `_test_fire_sim` / `_test_heat_ceiling` / `_test_heat_data`。
 
 ---
 
@@ -132,4 +145,4 @@ presentation 層（`presentation/heat/fire_view.gd`）はクリック／スラ�
 - `docs/design/tactile-crafting.md` — タクタイル・クラフト原則
 - `docs/design/reaction-map.md` — 反応マップ本体（温度軸）
 - `core/heat/heat_source.gd` / `core/heat/fire_sim.gd` — 仮実装（§6）
-- `presentation/heat/fire_lab.tscn` — 火ラボ（3段階を触れる仮UI）
+- `presentation/heat/fire_lab.tscn` — 火ラボ（3段階を触れる仮UI。段階ごとのビューは `*_fire_view.gd`）
