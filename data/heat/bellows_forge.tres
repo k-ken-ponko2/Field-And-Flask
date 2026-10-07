@@ -13,6 +13,6 @@ input_gain = 1.5
 idle_drive = 0.1
 drive_decay = 1.2
 fuel_burn_rate = 0.02
-drive_burn_rate = 0.12
+drive_burn_rate = 0.06
 response_time = 1.1
 tech_id = &"bellows"

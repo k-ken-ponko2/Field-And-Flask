@@ -1,0 +1,12 @@
+[gd_resource type="Resource" script_class="VesselDef" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://core/heat/vessel_def.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = &"clay_pot"
+display_name = "土器"
+max_temperature = 900.0
+heat_lag = 3.0
+sprite = &"pot"
+tech_id = &"pottery"

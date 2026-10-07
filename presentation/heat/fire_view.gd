@@ -11,6 +11,8 @@ class_name FireView
 extends Control
 
 signal fed(timing: StringName)
+## 作業台でパレットから何かがドロップされた（data はパレット側が _get_drag_data で返した辞書）。
+signal item_dropped(data: Dictionary, at: Vector2)
 
 ## ドット絵の拡大率（整数倍でくっきり）。
 const PX := 4.0
@@ -30,6 +32,9 @@ const TEX := {
 	&"bellows_0": preload("res://assets/sprites/fire_bellows_0.png"),
 	&"bellows_1": preload("res://assets/sprites/fire_bellows_1.png"),
 	&"bellows_2": preload("res://assets/sprites/fire_bellows_2.png"),
+	&"pot": preload("res://assets/sprites/fire_pot.png"),
+	&"crucible": preload("res://assets/sprites/fire_crucible.png"),
+	&"crack": preload("res://assets/sprites/fire_crack.png"),
 }
 const FLAMES := {
 	&"s": [preload("res://assets/sprites/fire_flame_s_0.png"), preload("res://assets/sprites/fire_flame_s_1.png"),
@@ -41,6 +46,12 @@ const FLAMES := {
 }
 
 var sim: FireSim
+## 火の上に載せた容器（作業台が設定する）。null なら描かない。
+var vessel: VesselDef = null
+var vessel_temperature: float = FireSim.AMBIENT
+var vessel_cracked: bool = false
+## ドロップを受け付けるか（作業台のときだけ true）。
+var accepts_drops: bool = false
 var _flicker := 0.0
 
 func _ready() -> void:
@@ -78,6 +89,7 @@ func _draw() -> void:
 	_draw_back()
 	_draw_glow()
 	_draw_flames()
+	_draw_vessel()
 	_draw_front()
 	_draw_fuel_gauge()
 	_draw_temperature()
@@ -135,6 +147,35 @@ func _draw_flames() -> void:
 		_blit_bottom(FLAMES[&"l"][frame], base, flip, tint)
 		_blit_bottom(FLAMES[&"s"][(frame + 2) % 4], base + Vector2(-9 * PX, 0), not flip, tint)
 		_blit_bottom(FLAMES[&"s"][(frame + 1) % 4], base + Vector2(9 * PX, 0), flip, tint)
+
+## 容器の座る位置（下端中央）。炎の根元より少し上。
+func vessel_seat() -> Vector2:
+	return fire_origin() - Vector2(0, 5 * PX)
+
+## 火の上の容器。温度で赤らみ、ひびが入れば重ねる。
+func _draw_vessel() -> void:
+	if vessel == null:
+		return
+	var tex: Texture2D = TEX.get(vessel.sprite, TEX[&"pot"])
+	var heat := clampf((vessel_temperature - FireSim.AMBIENT) / maxf(vessel.max_temperature - FireSim.AMBIENT, 1.0), 0.0, 1.0)
+	var tint := Color.WHITE.lerp(Color(1.0, 0.6, 0.45), heat * 0.8)
+	_blit_bottom(tex, vessel_seat(), false, tint)
+	if vessel_cracked:
+		_blit_bottom(TEX[&"crack"], vessel_seat())
+	var font := get_theme_default_font()
+	var label := "%s %d℃" % [vessel.display_name, int(round(vessel_temperature))]
+	if vessel_cracked:
+		label += "  ひびが入った！"
+	var tw := font.get_string_size(label, HORIZONTAL_ALIGNMENT_LEFT, -1, 14).x
+	var seat := vessel_seat()
+	draw_string(font, Vector2(seat.x - tw * 0.5, seat.y - tex.get_height() * PX - 10), label, HORIZONTAL_ALIGNMENT_LEFT, -1, 14, Color(1.0, 0.5, 0.4) if vessel_cracked else Color(0.9, 0.85, 0.75))
+
+## ドラッグ＆ドロップ（Control の仕組み）。パレットが返す辞書 {kind, id} を受け取り、作業台へ渡す。
+func _can_drop_data(_at: Vector2, data: Variant) -> bool:
+	return accepts_drops and data is Dictionary and data.has("kind")
+
+func _drop_data(at: Vector2, data: Variant) -> void:
+	item_dropped.emit(data, at)
 
 ## 燃料ゲージ（ドット刻みのセグメントバー）。
 func _draw_fuel_gauge() -> void:

@@ -134,6 +134,23 @@ Godot 側は Nearest で整数倍（4×）に拡大し、風や輪などの“�
 
 実スクショ: `docs/prototypes/screenshot-fire-lab-1-direct.png` / `-2-fan.png` / `-3-bellows.png`。
 
+### 作業台：道具を置いて組み合わせる（仮実装）
+
+火ラボは「1つの熱源を操作する」画面だが、ゲームの実験室は**道具を選んで組み合わせる**場所なので、
+その土台として作業台（`presentation/lab/lab_bench.tscn`、core は `core/heat/lab_bench.gd`）を用意した。
+
+- 右のパレットから左へ**ドラッグ＆ドロップ**。熱源を据えると火の UI がその熱源のものに切り替わる。
+- 熱源の上に**容器**（`VesselDef`、`data/heat/clay_pot.tres` 土器 / `crucible.tres` るつぼ）を置く。
+  容器は火の温度に `heat_lag` で追従し、`max_temperature` を超えると**ひびが入る**。
+  → 土器（900℃）はふいご炉（1300℃）に耐えない＝「上の熱には上の容器が要る」階段が遊びとして見える。
+- 熱源が無いと容器は置けない／火から離れた位置へのドロップは「火の上に置いてください」。
+- 状態（熱源・温度・容器・記録）は `LabBench` が持ち、ドロップは `place_heat_source` / `place_vessel` に変換される。
+
+実スクショ: `docs/prototypes/screenshot-lab-bench.png`（直火に土器）／ `screenshot-lab-bench-cracked.png`（ふいご炉で土器にひび）。
+Web: https://k-ken-ponko2.github.io/Field-And-Flask/play/?scene=lab_bench
+
+次に足すなら：容器の中身（水→沸騰、鉱石→溶解）と反応マップへの橋渡し、道具の「手に持つ」（たたく・こねる）。
+
 ### 試すには
 
 `presentation/heat/fire_lab.tscn` を実行（F6）。右のボタンで3段階を切り替え、クリック／スライド／長押しで温度を上げる。

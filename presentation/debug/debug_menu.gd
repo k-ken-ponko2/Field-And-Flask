@@ -7,6 +7,7 @@ class_name DebugMenu
 extends Node
 
 const SCENES := [
+	{"id": "lab_bench", "label": "作業台（道具をドラッグ＆ドロップ）", "path": "res://presentation/lab/lab_bench.tscn"},
 	{"id": "fire_lab_direct", "label": "火ラボ ① 直火（クリックで薪）", "path": "res://presentation/heat/fire_lab_direct.tscn"},
 	{"id": "fire_lab_fan", "label": "火ラボ ② 囲い炉（スライドであおぐ）", "path": "res://presentation/heat/fire_lab_fan.tscn"},
 	{"id": "fire_lab_bellows", "label": "火ラボ ③ ふいご炉（長押し）", "path": "res://presentation/heat/fire_lab_bellows.tscn"},

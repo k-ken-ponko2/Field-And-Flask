@@ -151,6 +151,60 @@ SPRITES["fire_uchiwa"] = [
     ".......ooo......",
 ]
 
+# 土器（火にかける容器）。口が広く、底が丸い。
+SPRITES["fire_pot"] = [
+    "..oooooooooooooooooo..",
+    ".oTuuuuuuuuuuuuuuuuTo.",
+    ".oTTTTTTTTTTTTTTTTTTo.",
+    "..ottttttttttttttttto.",
+    "..otuttttttttttttttTo.",
+    ".otuuttttttttttttttTTo",
+    ".otuuttttttttttttttTTo",
+    ".otuuttttttttttttttTTo",
+    ".otuutttttttttttttTTTo",
+    ".ottuttttttttttttTTTTo",
+    "..otuttttttttttttTTTo.",
+    "..ottttttttttttttTTTo.",
+    "...otttttttttttttTTo..",
+    "....ottttttttttTTTo...",
+    ".....ooTTTTTTTTToo....",
+    ".......oooooooo.......",
+]
+
+# るつぼ（小さく厚い）。
+SPRITES["fire_crucible"] = [
+    "..oooooooooooo..",
+    ".oqRRRRRRRRRRqo.",
+    ".oRrrrrrrrrrrRo.",
+    "..oRrrrrrrrrRo..",
+    "..oRrrrrrrrrRo..",
+    "..oRrrrrrrrrRo..",
+    "..oRRrrrrrrRRo..",
+    "...oRRrrrrRRo...",
+    "...oRRRRRRRRo...",
+    "....oooooooo....",
+]
+
+# ひび（容器の上に重ねる）。
+SPRITES["fire_crack"] = [
+    "......................",
+    "......................",
+    "..........o...........",
+    "..........o...........",
+    "...........o..........",
+    "..........o...........",
+    ".........o............",
+    "..........o...........",
+    "..........oo..........",
+    "............o.........",
+    "...........o..........",
+    "...........o..........",
+    "......................",
+    "......................",
+    "......................",
+    "......................",
+]
+
 # --- 炎（手続き）：サイズ3種 × フレーム4 ---------------------------------------
 
 

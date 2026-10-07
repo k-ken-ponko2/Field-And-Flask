@@ -24,6 +24,7 @@ func _initialize() -> void:
 	_test_fire_sim()
 	_test_heat_ceiling()
 	_test_heat_data()
+	_test_lab_bench()
 	_test_calendar()
 	print("========================================")
 	print("Field & Flask core tests: passed=%d failed=%d" % [_passed, _failed])
@@ -520,6 +521,55 @@ func _test_heat_data() -> void:
 		_ok(is_equal_approx(h.max_temperature, e[1]) and h.input_mode == e[2], "%s: 天井と操作" % id)
 		_ok(h.max_temperature > prev_ceiling, "%s: 上の段階ほど天井が高い" % id)
 		prev_ceiling = h.max_temperature
+
+func _test_lab_bench() -> void:
+	var bench := LabBench.new()
+	var pot := VesselDef.new()
+	pot.id = &"clay_pot"; pot.max_temperature = 900.0; pot.heat_lag = 1.0
+	# 熱源が無いと容器は置けない。
+	var r0 := bench.place_vessel(pot)
+	_ok(not r0["ok"] and r0["reason"] == &"needs_heat_source", "熱源が無いと容器は置けない")
+	# 直火を据えて土器を置く → 火の温度に追従。
+	var direct := _make_heat_source(HeatSource.InputMode.FEED_TIMING, 600.0, 0.35)
+	_ok(bench.place_heat_source(direct)["ok"], "直火を据える")
+	_ok(bench.place_vessel(pot)["ok"] and bench.vessel_ready(), "土器を火の上に置く")
+	bench.fire.feed()
+	var dt := 0.05
+	var t := 0.0
+	while t < 3.0:
+		bench.tick(dt)
+		t += dt
+	_ok(bench.vessel_temperature > 150.0 and bench.vessel_temperature <= bench.fire.temperature + 1.0, "土器は火の温度に遅れて追従 (%.0f℃ / 火 %.0f℃)" % [bench.vessel_temperature, bench.fire.temperature])
+	_ok(not bench.vessel_cracked, "600℃ の直火では土器は割れない")
+	# ふいご炉（1300℃）に差し替えると土器（900℃）はひびが入る。
+	var forge := _make_heat_source(HeatSource.InputMode.BELLOWS_HOLD, 1300.0, 1.2)
+	bench.place_heat_source(forge, 1.0)
+	_ok(bench.vessel == pot, "熱源を差し替えても容器は載ったまま")
+	t = 0.0
+	while t < 8.0:
+		bench.fire.pump(dt * 2.0)
+		bench.tick(dt)
+		t += dt
+	_ok(bench.vessel_cracked and not bench.vessel_ready(), "1300℃ のふいご炉では土器にひびが入る (%.0f℃)" % bench.vessel_temperature)
+	_ok(bench.log.back()["op"] == &"cracked", "ひびが記録される")
+	# るつぼ（1400℃）なら耐える。
+	var crucible := VesselDef.new()
+	crucible.id = &"crucible"; crucible.max_temperature = 1400.0; crucible.heat_lag = 1.0
+	bench.place_vessel(crucible)
+	bench.fire.fuel = 1.0
+	t = 0.0
+	while t < 8.0:
+		bench.fire.pump(dt * 2.0)
+		bench.tick(dt)
+		t += dt
+	_ok(bench.vessel_ready() and bench.vessel_temperature > 1000.0, "るつぼは 1300℃ に耐える (%.0f℃)" % bench.vessel_temperature)
+	bench.remove_vessel()
+	_ok(bench.vessel == null and is_equal_approx(bench.vessel_temperature, FireSim.AMBIENT), "容器を下ろす")
+	# データ。
+	var pot_data: VesselDef = load("res://data/heat/clay_pot.tres")
+	var cru_data: VesselDef = load("res://data/heat/crucible.tres")
+	_ok(pot_data != null and pot_data.id == &"clay_pot" and is_equal_approx(pot_data.max_temperature, 900.0), "data/heat/clay_pot.tres")
+	_ok(cru_data != null and cru_data.max_temperature > pot_data.max_temperature, "るつぼは土器より高温に耐える")
 
 # --- カレンダー -------------------------------------------------------------
 
