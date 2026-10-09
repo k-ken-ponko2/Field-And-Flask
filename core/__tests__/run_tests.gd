@@ -25,6 +25,7 @@ func _initialize() -> void:
 	_test_heat_ceiling()
 	_test_heat_data()
 	_test_lab_bench()
+	_test_queue_and_stir()
 	_test_calendar()
 	print("========================================")
 	print("Field & Flask core tests: passed=%d failed=%d" % [_passed, _failed])
@@ -570,6 +571,42 @@ func _test_lab_bench() -> void:
 	var cru_data: VesselDef = load("res://data/heat/crucible.tres")
 	_ok(pot_data != null and pot_data.id == &"clay_pot" and is_equal_approx(pot_data.max_temperature, 900.0), "data/heat/clay_pot.tres")
 	_ok(cru_data != null and cru_data.max_temperature > pot_data.max_temperature, "るつぼは土器より高温に耐える")
+
+func _test_queue_and_stir() -> void:
+	var map := ReactionMap.new()
+	map.bounds = Rect2(0, 0, 10, 10)
+	var vitriol := MaterialDef.new()
+	vitriol.id = &"vitriol"; vitriol.jump_vector = Vector2(0.6, 0.8); vitriol.jump_magnitude = 2.0; vitriol.acidity = 1.0
+	var lime := MaterialDef.new()
+	lime.id = &"lime"; lime.jump_vector = Vector2(-1, 0); lime.jump_magnitude = 1.0; lime.acidity = -1.0
+
+	var sim := ReactionSim.new(map, Vector2(2, 2))
+	_ok(sim.stir(1.0) == 0.0, "経路が無ければかき混ぜても進まない")
+	sim.queue_material(vitriol)
+	sim.queue_material(lime)
+	_ok(sim.position == Vector2(2, 2) and is_equal_approx(sim.net_acid, 0.0), "投入しただけではマーカーも組成も動かない")
+	_ok(is_equal_approx(sim.pending_length(), 3.0), "予告経路の長さ＝2+1")
+	var pts := sim.pending_points()
+	_ok(pts.size() == 3 and pts[1].is_equal_approx(Vector2(3.2, 3.6)) and pts[2].is_equal_approx(Vector2(2.2, 3.6)), "予告経路の折れ線")
+	# 半分かき混ぜる → 最初の素材の半分だけ進み、酸性度も半分。
+	var moved := sim.stir(1.0)
+	_ok(is_equal_approx(moved, 1.0) and sim.position.is_equal_approx(Vector2(2.6, 2.8)), "1 だけ進む (%.2f, %.2f)" % [sim.position.x, sim.position.y])
+	_ok(is_equal_approx(sim.net_acid, 1.0), "進んだ割合ぶん酸性度が入る (%.2f)" % sim.net_acid)
+	# 残り全部（2.0）より多くかき混ぜても経路の終点で止まる。
+	moved = sim.stir(5.0)
+	_ok(is_equal_approx(moved, 2.0) and sim.position.is_equal_approx(Vector2(2.2, 3.6)), "経路の終点で止まる")
+	_ok(is_equal_approx(sim.net_acid, 1.0) and sim.pending.is_empty(), "酸 2.0 + 塩基 1.0 ＝ 1.0、経路は消費済み")
+	# 記録はまとまっている（stir が 2 回 → 1 件）。
+	var stirs := sim.operations.filter(func(o): return o["op"] == &"stir")
+	_ok(stirs.size() == 1 and is_equal_approx(stirs[0]["amount"], 6.0), "連続した stir は 1 件にまとまる")
+	# 連続する加熱もまとまり、符号が変わると分かれる。
+	var h := ReactionSim.new(map, Vector2(2, 2))
+	h.heat(0.1); h.heat(0.2); h.heat(-0.1)
+	_ok(h.operations.size() == 2 and is_equal_approx(h.operations[0]["amount"], 0.3), "同符号の加熱はまとまり、冷却で分かれる")
+	# ノート再生で同じ座標・組成になる。
+	var note := sim.to_note()
+	var replayed := note.replay(map, {&"vitriol": vitriol, &"lime": lime})
+	_ok(replayed.position.is_equal_approx(sim.position) and is_equal_approx(replayed.net_acid, sim.net_acid), "queue/stir をノートから再現できる")
 
 # --- カレンダー -------------------------------------------------------------
 

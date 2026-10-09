@@ -47,8 +47,13 @@ var equipment_damage: float = 0.0
 var heat_ceiling: float = INF
 
 ## 実行した操作の記録（設計書 §7 の実験ノート＝経路の保存の下地）。
-## 各要素は { "op": StringName, "amount": float } か { "op": &"material", "material_id": StringName }。
+## 各要素は { "op": StringName, "amount": float } か { "op": &"material"/&"queue", "material_id": StringName }。
+## 同じ操作が同符号で連続したときは 1 件にまとめる（タクタイル操作は毎フレーム少量ずつ来るため）。
 var operations: Array = []
+
+## 投入済みでまだ「かき混ぜて」いない素材の経路（ポーションクラフト式）。
+## 各要素は { "material_id", "vector": Vector2（残りの移動）, "acidity": float（残りの酸当量） }。
+var pending: Array = []
 
 var _start_position: Vector2
 var _distill_penalty: float = 0.0
@@ -67,9 +72,18 @@ func set_heat_source(source: HeatSource) -> void:
 		return
 	heat_ceiling = map.temperature_to_y(source.max_temperature)
 
+## 操作を記録する。直前と同じ操作で同符号なら量を足してまとめる。
+func _record(op: StringName, amount: float) -> void:
+	if not operations.is_empty():
+		var last: Dictionary = operations.back()
+		if last.get("op") == op and last.has("amount") and signf(last["amount"]) == signf(amount):
+			last["amount"] += amount
+			return
+	operations.append({"op": op, "amount": amount})
+
 ## 加熱: 上へ。熱源の天井より上には行けない（既に天井より上にいる場合はそのまま）。
 func heat(amount: float) -> void:
-	operations.append({"op": &"heat", "amount": amount})
+	_record(&"heat", amount)
 	var target_y := position.y + amount
 	if amount > 0.0:
 		target_y = minf(target_y, maxf(heat_ceiling, position.y))
@@ -77,23 +91,23 @@ func heat(amount: float) -> void:
 
 ## 加水: 左へ。濃度が下がるので pH は中性へ寄る。
 func add_water(amount: float) -> void:
-	operations.append({"op": &"water", "amount": amount})
+	_record(&"water", amount)
 	_move_to(position + Vector2(-amount, 0.0))
 
 ## 蒸留: 右へ。収率が落ちる。
 func distill(amount: float) -> void:
-	operations.append({"op": &"distill", "amount": amount})
+	_record(&"distill", amount)
 	_move_to(position + Vector2(amount, 0.0))
 	_distill_penalty += absf(amount) * DISTILL_PENALTY
 
 ## 酸を加える: 組成を酸性側へ（pH を下げる）。マーカーは動かさない。
 func add_acid(equivalents: float) -> void:
-	operations.append({"op": &"acid", "amount": equivalents})
+	_record(&"acid", equivalents)
 	net_acid += absf(equivalents)
 
 ## 塩基を加える: 組成を塩基側へ（pH を上げる＝中和）。マーカーは動かさない。
 func add_base(equivalents: float) -> void:
-	operations.append({"op": &"base", "amount": equivalents})
+	_record(&"base", equivalents)
 	net_acid -= absf(equivalents)
 
 ## 素材投入: 固有方向へ跳躍し、素材の酸性度を組成へ加える。
@@ -101,6 +115,60 @@ func add_material(material: MaterialDef) -> void:
 	operations.append({"op": &"material", "material_id": material.id})
 	_move_to(position + material.jump_vector * material.jump_magnitude)
 	net_acid += material.acidity * material.jump_magnitude
+
+## 素材を投入して経路を予告する（ポーションクラフト式）。マーカーはまだ動かない。
+## stir() でかき混ぜると、投入順に経路をたどってマーカーが進み、酸性度も進んだ分だけ組成へ入る。
+func queue_material(material: MaterialDef) -> void:
+	operations.append({"op": &"queue", "material_id": material.id})
+	pending.append({
+		"material_id": material.id,
+		"vector": material.jump_vector * material.jump_magnitude,
+		"acidity": material.acidity * material.jump_magnitude,
+	})
+
+## かき混ぜる: 予告された経路を distance（マップ座標の距離）だけ進む。進んだ距離を返す。
+## 経路が無ければ 0。酸性度は進んだ割合ぶんだけ組成へ加わる。
+func stir(distance: float) -> float:
+	if distance <= 0.0 or pending.is_empty():
+		return 0.0
+	_record(&"stir", distance)
+	var left := distance
+	var moved := 0.0
+	while left > 0.0 and not pending.is_empty():
+		var seg: Dictionary = pending[0]
+		var v: Vector2 = seg["vector"]
+		var seg_len := v.length()
+		if seg_len <= 0.0001:
+			net_acid += seg["acidity"]
+			pending.pop_front()
+			continue
+		var step := minf(left, seg_len)
+		var frac := step / seg_len
+		_move_to(position + v * frac)
+		net_acid += seg["acidity"] * frac
+		seg["vector"] = v * (1.0 - frac)
+		seg["acidity"] = seg["acidity"] * (1.0 - frac)
+		left -= step
+		moved += step
+		if seg["vector"].length() <= 0.0001:
+			pending.pop_front()
+	return moved
+
+## 予告された経路の折れ線（現在地から順に）。表示用。
+func pending_points() -> PackedVector2Array:
+	var pts := PackedVector2Array([position])
+	var p := position
+	for seg in pending:
+		p += seg["vector"]
+		pts.append(p)
+	return pts
+
+## 残りの経路の長さ（マップ座標）。
+func pending_length() -> float:
+	var total := 0.0
+	for seg in pending:
+		total += (seg["vector"] as Vector2).length()
+	return total
 
 ## 濃度（マップ横軸を 0〜1 に正規化）。
 func concentration01() -> float:

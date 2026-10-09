@@ -16,7 +16,8 @@ extends Resource
 
 ## 操作列。ReactionSim.operations と同形式:
 ##   { "op": &"heat"/"water"/"distill"/"acid"/"base", "amount": float }
-##   { "op": &"material", "material_id": StringName }
+##   { "op": &"material"/&"queue", "material_id": StringName }
+##   { "op": &"stir", "amount": float }（queue した経路をかき混ぜて進む）
 @export var operations: Array = []
 
 ## 到達した目標物質の id（未到達なら &""）。
@@ -48,6 +49,12 @@ func replay(map: ReactionMap, materials: Dictionary = {}) -> ReactionSim:
 				var m: MaterialDef = materials.get(op.get("material_id"))
 				if m != null:
 					sim.add_material(m)
+			&"queue":
+				var q: MaterialDef = materials.get(op.get("material_id"))
+				if q != null:
+					sim.queue_material(q)
+			&"stir":
+				sim.stir(op["amount"])
 	return sim
 
 ## 委任量産: 入力素材の量・純度から、生産される量と純度を求める。
