@@ -103,12 +103,20 @@ func _check_hazard() -> void:
 		_say("暴走！ バッチは全損。「新しいバッチ」でやり直す", Color(0.9, 0.4, 0.3))
 
 func _on_bottle() -> void:
-	var tgt := sim.reached_target()
 	if sim.batch_lost:
 		_say("暴走したバッチは瓶に詰められない", Color(0.9, 0.5, 0.4))
 		return
+	var here := sim.current_region()
+	if here == null or here.kind != ReactionRegion.Kind.TARGET:
+		_say("まだ何にもなっていない（目標の円の中に入っていない）", Color(0.95, 0.85, 0.6))
+		return
+	var ratio := exploration.clear_ratio(here.center, here.radius)
+	if ratio < MapExploration.BOTTLE_CLEAR_RATIO:
+		_say("霧が濃くてまだ見えない… 円の中をもっと晴らす（%d%% / 50%%）" % int(round(ratio * 100.0)), Color(0.95, 0.85, 0.6))
+		return
+	var tgt := sim.reached_target()
 	if tgt == null:
-		_say("まだ何にもなっていない（目標の領域と pH を満たしていない）", Color(0.95, 0.85, 0.6))
+		_say("円の中だが pH が条件外（今 %.1f、要 %.0f〜%.0f）" % [sim.ph(), here.ph_min, here.ph_max], Color(0.95, 0.85, 0.6))
 		return
 	var note := sim.to_note()
 	notes.append(note)

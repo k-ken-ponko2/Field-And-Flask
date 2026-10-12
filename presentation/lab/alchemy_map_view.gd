@@ -25,6 +25,9 @@ const FOG_W := 92
 const FOG_H := 80
 const FOG_COLOR := Color(0.56, 0.51, 0.45)
 var _fog_vis := PackedFloat32Array()
+## 目標ごとの晴れ割合（探索状態が変わったときだけ再計算）。
+var _clear: Dictionary = {}
+var _clear_applied := -1
 var _fog_applied := 0
 var _fog_tex: ImageTexture
 var _fog_img: Image
@@ -114,6 +117,18 @@ func _update_fog() -> void:
 func _visible_at(p: Vector2) -> float:
 	return 1.0 if exploration == null else exploration.visibility(p)
 
+## 目標の内側の晴れ割合（0〜1）。探索状態が無ければ 1。
+func clear_ratio_of(reg: ReactionRegion) -> float:
+	if exploration == null:
+		return 1.0
+	if _clear_applied != exploration.revealed.size():
+		_clear.clear()
+		for r in sim.map.regions:
+			if r.kind == ReactionRegion.Kind.TARGET:
+				_clear[r] = exploration.clear_ratio(r.center, r.radius)
+		_clear_applied = exploration.revealed.size()
+	return _clear.get(reg, 0.0)
+
 func to_screen(p: Vector2) -> Vector2:
 	var b := sim.map.bounds
 	var r := _plot()
@@ -155,12 +170,15 @@ func _draw() -> void:
 			draw_circle(c, rad, Color(0.65, 0.2, 0.15, 0.12))
 			LabAssets.dotted_circle(self, c, rad, Color(0.6, 0.2, 0.15, 0.9), 40, 3.0)
 			LabAssets.blit_center(self, LabAssets.TEX[&"hazard"], c)
-		elif _is_known(reg):
-			LabAssets.dotted_circle(self, c, rad, LabAssets.INK_SOFT, 36, 3.0)
-			LabAssets.blit_center(self, LabAssets.TEX[&"target"], c)
 		else:
-			LabAssets.dotted_circle(self, c, rad, LabAssets.INK_SOFT, 36, 3.0)
-			draw_string(font, c + Vector2(-7, 9), "？", HORIZONTAL_ALIGNMENT_LEFT, -1, 22, LabAssets.INK)
+			# 輪は晴れ具合で濃くなり、瓶詰めできる晴れ方になると金色に。
+			var ratio := clear_ratio_of(reg)
+			var ring := Color(0.85, 0.65, 0.2, 1.0) if ratio >= MapExploration.BOTTLE_CLEAR_RATIO else Color(LabAssets.INK.r, LabAssets.INK.g, LabAssets.INK.b, 0.3 + 0.5 * ratio)
+			LabAssets.dotted_circle(self, c, rad, ring, 36, 3.0)
+			if _is_known(reg):
+				LabAssets.blit_center(self, LabAssets.TEX[&"target"], c)
+			else:
+				draw_string(font, c + Vector2(-7, 9), "？", HORIZONTAL_ALIGNMENT_LEFT, -1, 22, LabAssets.INK)
 	# 軌跡（インクの細線）
 	if trail.size() >= 2:
 		var pts := PackedVector2Array()
@@ -209,10 +227,14 @@ func _draw() -> void:
 		"温度 %d℃" % int(round(sim.map.y_to_temperature(sim.position.y))),
 		"pH %.1f" % ph,
 	]
-	var tgt := sim.reached_target()
-	if tgt != null:
-		var shown_name: String = tgt.label if _is_known(tgt) else "未知の物質（瓶詰めで判明）"
+	var here := sim.current_region()
+	if here != null and here.kind == ReactionRegion.Kind.TARGET:
+		var shown_name: String = here.label if _is_known(here) else "未知の物質（瓶詰めで判明）"
+		var ratio := clear_ratio_of(here)
+		var ok_fog := ratio >= MapExploration.BOTTLE_CLEAR_RATIO
+		var ok_ph := here.accepts_ph(ph)
 		lines.append("→ %s 収率 %d%%" % [shown_name, int(round(sim.yield_ratio() * 100.0))])
+		lines.append("霧 %d%%%s ／ pH %s" % [int(round(ratio * 100.0)), "" if ok_fog else "（50%で瓶詰め可）", "OK" if ok_ph else "条件外"])
 	for i in lines.size():
 		draw_string(font, Vector2(r.end.x - 300, r.end.y - 14 - (lines.size() - 1 - i) * 18), lines[i], HORIZONTAL_ALIGNMENT_LEFT, -1, 13, LabAssets.INK)
 

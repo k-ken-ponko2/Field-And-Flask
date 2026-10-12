@@ -625,6 +625,17 @@ func _test_map_exploration() -> void:
 	_ok(not ex.discover(&"dilute_sulfuric_acid"), "二度目は発見扱いにならない")
 	ex.reveal_around(Vector2(7, 5), 1.2 + MapExploration.DISCOVERY_MARGIN)
 	_ok(ex.is_revealed(Vector2(7, 7.1)), "発見で周りが広めに晴れる")
+	# 円の内側の晴れ割合：縁を一度通っただけでは半分に届かず、中心まで行けば届く。
+	var reg := ReactionRegion.new()
+	reg.center = Vector2(5, 8)
+	reg.radius = 1.2
+	_ok(is_zero_approx(ex.clear_ratio(reg.center, reg.radius)), "未踏の円は 0%")
+	ex.mark_visited(Vector2(5, 6.9))
+	var edge := ex.clear_ratio(reg.center, reg.radius)
+	_ok(edge > 0.05 and edge < MapExploration.BOTTLE_CLEAR_RATIO and not ex.is_clear_enough(reg), "縁をかすめただけでは半分に届かない (%.0f%%)" % (edge * 100.0))
+	ex.mark_visited(Vector2(5, 8))
+	var centered := ex.clear_ratio(reg.center, reg.radius)
+	_ok(centered >= MapExploration.BOTTLE_CLEAR_RATIO and ex.is_clear_enough(reg), "中心まで行けば半分以上晴れる (%.0f%%)" % (centered * 100.0))
 
 # --- カレンダー -------------------------------------------------------------
 

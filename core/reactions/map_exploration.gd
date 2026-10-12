@@ -13,6 +13,8 @@ const REVEAL_RADIUS := 0.9
 const DISCOVERY_MARGIN := 1.0
 ## 訪問点を間引く距離（これより近い点は追加しない）。
 const MIN_STEP := 0.25
+## 瓶詰め（生成）に必要な、領域の内側の晴れ割合。
+const BOTTLE_CLEAR_RATIO := 0.5
 
 @export var map_id: StringName = &""
 ## 晴れた点の列 [{ "p": Vector2, "r": float }]。
@@ -68,3 +70,21 @@ func visibility(p: Vector2, soft: float = 0.5) -> float:
 ## 点がはっきり見えるか（晴れの内側）。
 func is_revealed(p: Vector2) -> bool:
 	return visibility(p, 0.0) >= 1.0
+
+## 円の内側がどれだけ晴れているか（0〜1）。内側を格子で標本化して数える。
+func clear_ratio(center: Vector2, radius: float, samples: int = 12) -> float:
+	var inside := 0
+	var clear := 0
+	for iy in samples:
+		for ix in samples:
+			var p := center + Vector2((ix + 0.5) / samples * 2.0 - 1.0, (iy + 0.5) / samples * 2.0 - 1.0) * radius
+			if p.distance_to(center) > radius:
+				continue
+			inside += 1
+			if is_revealed(p):
+				clear += 1
+	return float(clear) / float(inside) if inside > 0 else 0.0
+
+## この領域で瓶詰めできるだけ霧が晴れているか。
+func is_clear_enough(region: ReactionRegion) -> bool:
+	return clear_ratio(region.center, region.radius) >= BOTTLE_CLEAR_RATIO
