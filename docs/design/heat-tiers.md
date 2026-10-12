@@ -107,8 +107,9 @@ fuel（燃料 0〜1）  : (fuel_burn_rate + drive × drive_burn_rate) × dt で�
 temperature        : 平衡温度へ response_time で追従し、max_temperature でハードクランプ
 ```
 
-① の薪入れは**タイミング判定**：燃料 ≤ 0.45（熾火）なら `good`（火勢 1.0）、
-それより多ければ `early`（火勢 ×0.4＝窒息）、消えた後なら `late`（火勢 0.25＝点け直し）。
+① の薪入れは**タイミング判定**：火勢 ≤ 0.35（炎が小さい＝熾火）なら `good`（火勢 1.0）、
+燃え盛っている最中なら `early`（火勢 ×0.4＝窒息）、消えた後なら `late`（火勢 0.25＝点け直し）。
+（当初は燃料残量で判定していたが、「炎を見て入れる」ほうが手触りとして分かりやすいので火勢に変更。）
 presentation 層（`presentation/heat/fire_view.gd`）はクリック／スライド距離／押下時間を数値にして流すだけ。
 
 ### 反応マップとの接続
@@ -158,6 +159,11 @@ Web: https://k-ken-ponko2.github.io/Field-And-Flask/play/?scene=lab_bench
 検証は `core/__tests__/run_tests.gd` の `_test_fire_sim` / `_test_heat_ceiling` / `_test_heat_data`。
 
 ---
+
+## 7. 錬金ラボとの接続
+
+ポーションクラフト寄せの実験室（`docs/design/alchemy-lab.md`）では、釜の温度がそのまま反応マップの縦軸になる。
+熱源の操作はこの文書の 3 段階そのままで、据え替えると火の帯の道具と「この炉の天井」の点線が変わる。
 
 ## 参照
 

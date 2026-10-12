@@ -1,7 +1,7 @@
 ## ① 直火の UI（ドット絵）：タイミングよく薪を入れる（クリック）。
 ##
 ## 見た目: 石で囲った焚き火と、脇の薪の山。クリックで薪が飛んで火に入る。
-## タイミングの手がかり: 燃料ゲージの熾火帯 ＋ 火を囲むドットの輪（好機なら明るく回る）＋ 一言。
+## タイミングの手がかり: 炎の大きさ（熾火＝小さい炎が好機）＋ 火を囲むドットの輪（好機なら明るく回る）＋ 一言。
 class_name DirectFireView
 extends FireView
 
@@ -51,7 +51,7 @@ func _on_process(delta: float) -> void:
 	_flash_t = maxf(0.0, _flash_t - delta)
 
 func _is_good_moment() -> bool:
-	return not sim.is_out() and sim.fuel <= FireSim.FEED_WINDOW_HIGH
+	return sim.is_ember()
 
 func _pile_origin() -> Vector2:
 	return Vector2(size.x * 0.16, size.y * 0.84)
@@ -106,14 +106,9 @@ func _draw_front() -> void:
 		msg = "今だ！ クリックで薪を入れる"
 		col = Color(1.0, 0.85, 0.4)
 	else:
-		msg = "まだ燃えている… 熾火になるまで待つ"
+		msg = "燃え盛っている… 炎が小さくなるまで待つ"
 		col = Color(0.75, 0.7, 0.65)
 	_draw_caption(msg, 70.0, col, 18)
 
-func _draw_gauge_overlay(gauge: Rect2, segs: int, seg_w: int) -> void:
-	# 熾火帯：薪を入れる好機のセグメントを枠で囲む。
-	var n := int(ceil(segs * FireSim.FEED_WINDOW_HIGH))
-	var w := n * (seg_w + 1) * PX - PX
-	var band := Rect2(gauge.position - Vector2(PX, PX), Vector2(w + PX * 2, gauge.size.y + PX * 2))
-	draw_rect(band, Color(1.0, 0.7, 0.3, 0.9), false, 2.0)
-	draw_string(get_theme_default_font(), gauge.position + Vector2(w + 12, -8), "← 熾火（薪の好機）", HORIZONTAL_ALIGNMENT_LEFT, -1, 12, Color(1.0, 0.8, 0.5))
+func _draw_gauge_overlay(_gauge: Rect2, _segs: int, _seg_w: int) -> void:
+	pass

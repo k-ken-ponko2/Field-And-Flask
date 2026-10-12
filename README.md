@@ -45,7 +45,7 @@ HTML プロトタイプ・実機スクショ・スプライト一覧をまとめ
 
 - 入口の HTML は `web/index.html`、Web ビルドの起動シーンは `presentation/debug/debug_menu.tscn`
   （`project.godot` の `run/main_scene.web` で Web のときだけ差し替え）
-- `play/?scene=<id>` で各シーンを直接開ける（lab_bench / fire_lab_direct / fire_lab_fan / fire_lab_bellows / fire_lab / reaction_lab / field）
+- `play/?scene=<id>` で各シーンを直接開ける（alchemy_lab / lab_bench / fire_lab_direct / fire_lab_fan / fire_lab_bellows / fire_lab / reaction_lab / field）
 - ローカルで書き出すには Web 用エクスポートテンプレートを入れて
   `godot --headless --path . --export-release "Web" build/web/index.html`
 
@@ -107,6 +107,9 @@ unzip godot.zip
   天井温度による加熱のハードクランプ（`docs/design/heat-tiers.md` §6）
 - **作業台**（`presentation/lab/lab_bench.tscn`）: 熱源と容器（土器・るつぼ）をドラッグ＆ドロップで
   組み合わせる。容器は火の温度に追従し、耐熱を超えるとひびが入る
+- **錬金ラボ**（`presentation/lab/alchemy_lab.tscn`、`docs/design/alchemy-lab.md`）: ポーションクラフト寄せの実験室。
+  羊皮紙の反応マップ＋大釜。素材を釜へドラッグ（点線で予告）→ かき混ぜ棒で回して進む → ひしゃく／蒸留器 →
+  熱源の操作で温度 → 目標で瓶詰め。見た目は木版画風ドット絵（`tools/gen_lab_sprites.py`）
 - 領域判定（目標・暴走・未踏）と暴走域の検出
 - 経路の効率が収率になるモデル（遠回り・蒸留で収率低下）
 - 純度の混合・精製計算

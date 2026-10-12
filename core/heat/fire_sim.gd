@@ -20,8 +20,9 @@ const DRIVE_CURVE := 0.6
 
 ## ① 薪入れ: 1 回で足される燃料。
 const FEED_AMOUNT := 0.45
-## ① 薪入れ: 燃料がこれ以下なら「熾火」＝ちょうどよいタイミング。
-const FEED_WINDOW_HIGH := 0.45
+## ① 薪入れ: 火勢がこれ以下まで落ちていれば「熾火」＝ちょうどよいタイミング。
+## （炎が小さくなるのを待って薪を足すと勢いよく燃え上がり、燃え盛っている最中に足すと窒息する）
+const FEED_EMBER_DRIVE := 0.35
 ## ① 薪入れ: 早すぎ（まだ燃料が多い）と火が窒息して火勢がこの倍率に落ちる。
 const SMOTHER_FACTOR := 0.4
 ## ① 薪入れ: 消えた火に薪を足したときの火勢（点け直しは弱い）。
@@ -45,10 +46,10 @@ func _init(heat_source: HeatSource, start_fuel: float = 0.5) -> void:
 func accepts(mode: HeatSource.InputMode) -> bool:
 	return source != null and source.input_mode == mode
 
-## ① 薪を入れる（クリック）。タイミングは燃料残量で判定する。
+## ① 薪を入れる（クリック）。タイミングは火勢（炎の大きさ）で判定する。
 ## 戻り値: { "ok": bool, "timing": &"good" | &"early" | &"late" }
-##   good  … 熾火に薪 → 火勢が最大になる
-##   early … まだ燃えているのに薪 → 窒息して火勢が落ちる
+##   good  … 熾火（炎が小さい）に薪 → 火勢が最大になる
+##   early … 燃え盛っている最中に薪 → 窒息して火勢が落ちる
 ##   late  … 火が消えてから薪 → 点け直し（火勢は弱い）
 func feed() -> Dictionary:
 	if not accepts(HeatSource.InputMode.FEED_TIMING):
@@ -57,7 +58,7 @@ func feed() -> Dictionary:
 	if fuel <= 0.0:
 		timing = &"late"
 		drive = RELIGHT_DRIVE
-	elif fuel <= FEED_WINDOW_HIGH:
+	elif drive <= FEED_EMBER_DRIVE:
 		timing = &"good"
 		drive = 1.0
 	else:
@@ -114,3 +115,7 @@ func temperature01() -> float:
 ## 指定の温度帯に入っているか（℃）。
 func in_band(low: float, high: float) -> bool:
 	return temperature >= low and temperature <= high
+
+## 熾火か（炎が小さく、薪を入れる好機）。消えていれば false。
+func is_ember() -> bool:
+	return fuel > 0.0 and drive <= FEED_EMBER_DRIVE

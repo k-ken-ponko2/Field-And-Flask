@@ -16,7 +16,7 @@ extends Control
 
 const SOURCE_IDS := ["direct_fire", "enclosed_fire", "bellows_forge"]
 const HINTS := {
-	HeatSource.InputMode.FEED_TIMING: "火の上をクリックして薪を入れる。燃料ゲージが橙の帯（熾火）に入ったときが好機。",
+	HeatSource.InputMode.FEED_TIMING: "火の上をクリックして薪を入れる。炎が小さくなった（熾火）ときが好機。燃え盛っている最中は窒息する。",
 	HeatSource.InputMode.FAN_SLIDE: "火の上でマウスを左右に動かしてあおぐ。手を止めると火勢が落ちる。",
 	HeatSource.InputMode.BELLOWS_HOLD: "火の上でクリックを押し続けてふいごを踏む。短い押下では弱い。",
 }

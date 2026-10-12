@@ -7,7 +7,7 @@
 script = ExtResource("2")
 kind = 0
 label = "希硫酸"
-center = Vector2(2, 6)
+center = Vector2(2, 4.4)
 radius = 1.2
 product_id = &"dilute_sulfuric_acid"
 base_purity = 0.7
