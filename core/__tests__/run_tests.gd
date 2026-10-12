@@ -26,6 +26,7 @@ func _initialize() -> void:
 	_test_heat_data()
 	_test_lab_bench()
 	_test_queue_and_stir()
+	_test_map_exploration()
 	_test_calendar()
 	print("========================================")
 	print("Field & Flask core tests: passed=%d failed=%d" % [_passed, _failed])
@@ -608,6 +609,22 @@ func _test_queue_and_stir() -> void:
 	var note := sim.to_note()
 	var replayed := note.replay(map, {&"vitriol": vitriol, &"lime": lime})
 	_ok(replayed.position.is_equal_approx(sim.position) and is_equal_approx(replayed.net_acid, sim.net_acid), "queue/stir をノートから再現できる")
+
+func _test_map_exploration() -> void:
+	var ex := MapExploration.new(&"acid_base")
+	_ok(is_zero_approx(ex.visibility(Vector2(2, 2))), "最初は全てモヤ")
+	_ok(ex.mark_visited(Vector2(2, 2)), "訪問点を記録")
+	_ok(not ex.mark_visited(Vector2(2.1, 2.0)), "近すぎる点は間引く")
+	_ok(ex.is_revealed(Vector2(2.5, 2.0)), "半径内は晴れ")
+	_ok(not ex.is_revealed(Vector2(4.0, 2.0)), "遠くはモヤのまま")
+	var v := ex.visibility(Vector2(2.0 + MapExploration.REVEAL_RADIUS + 0.25, 2.0))
+	_ok(v > 0.4 and v < 0.6, "縁は滑らかに落ちる (%.2f)" % v)
+	_ok(ex.mark_visited(Vector2(3, 2)) and ex.is_revealed(Vector2(3.5, 2.0)), "動いた先も晴れ、跡は残る")
+	_ok(not ex.is_discovered(&"dilute_sulfuric_acid"), "未発見")
+	_ok(ex.discover(&"dilute_sulfuric_acid") and ex.is_discovered(&"dilute_sulfuric_acid"), "瓶詰めで発見")
+	_ok(not ex.discover(&"dilute_sulfuric_acid"), "二度目は発見扱いにならない")
+	ex.reveal_around(Vector2(7, 5), 1.2 + MapExploration.DISCOVERY_MARGIN)
+	_ok(ex.is_revealed(Vector2(7, 7.1)), "発見で周りが広めに晴れる")
 
 # --- カレンダー -------------------------------------------------------------
 

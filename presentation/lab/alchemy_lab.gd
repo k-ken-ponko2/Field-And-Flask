@@ -23,6 +23,8 @@ var materials: Dictionary = {}
 var sim: ReactionSim
 var bench := LabBench.new()
 var notes: Array[ReactionNote] = []
+## 探索状態（モヤの晴れ方・発見済み）。バッチをまたいで残る。
+var exploration: MapExploration
 
 var map_view: AlchemyMapView
 var station: CauldronStation
@@ -36,7 +38,9 @@ func _ready() -> void:
 		var m: MaterialDef = load("res://data/materials/%s.tres" % id)
 		if m != null:
 			materials[m.id] = m
+	exploration = MapExploration.new(map.id)
 	_build_ui()
+	map_view.exploration = exploration
 	# ポーションクラフト同様、最初から火と釜は据えてある。
 	bench.place_heat_source(load("res://data/heat/direct_fire.tres"), 1.0)
 	bench.place_vessel(load("res://data/heat/cauldron.tres"))
@@ -62,6 +66,7 @@ func _process(delta: float) -> void:
 		sim.batch_lost = true
 		_say("釜にひびが入った… 中身は失われた", Color(0.9, 0.5, 0.4))
 	station.liquid_color = LabAssets.litmus(sim.ph()) if not sim.batch_lost else Color(0.3, 0.1, 0.1)
+	exploration.mark_visited(sim.position)
 	map_view.heat_ceiling_celsius = bench.fire.source.max_temperature if bench.fire != null else 0.0
 	if _toast_timer > 0.0:
 		_toast_timer -= delta
@@ -107,7 +112,10 @@ func _on_bottle() -> void:
 		return
 	var note := sim.to_note()
 	notes.append(note)
-	_say("%s を瓶詰め — 収率 %d%% / 純度目安 %.2f。ノートに記録した" % [tgt.label, int(round(note.recorded_yield * 100.0)), note.base_purity], Color(0.95, 0.85, 0.5))
+	var first := exploration.discover(tgt.product_id)
+	exploration.reveal_around(tgt.center, tgt.radius + MapExploration.DISCOVERY_MARGIN)
+	var head := "新発見！ " if first else ""
+	_say("%s%s を瓶詰め — 収率 %d%% / 純度目安 %.2f。ノートに記録した" % [head, tgt.label, int(round(note.recorded_yield * 100.0)), note.base_purity], Color(0.95, 0.85, 0.5))
 	_new_batch()
 
 func _on_dropped(data: Dictionary) -> void:

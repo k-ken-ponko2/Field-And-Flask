@@ -24,6 +24,7 @@ UI を起動せずにロジックを検証できる。数十時間規模のバ�
 | `reactions/reaction_sim.gd` | マーカー操作・収率・暴走域・pH・操作記録 |
 | `reactions/ph_model.gd` | pH の連続モデル（組成・濃度・温度 → pH） |
 | `reactions/reaction_note.gd` | 実験ノート（経路の保存・再生・委任量産） |
+| `reactions/map_exploration.gd` | 探索状態（霧の晴れ方・発見済みの物質） |
 | `heat/heat_source.gd` | 熱源の定義（温度の天井・操作の種類、データ駆動） |
 | `heat/fire_sim.gd` | 火のシミュレータ（薪のタイミング／あおぐ／ふいご → 火勢・燃料・温度） |
 | `heat/vessel_def.gd` | 火にかける容器の定義（耐熱・追従の遅れ） |
