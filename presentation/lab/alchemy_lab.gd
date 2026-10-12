@@ -66,6 +66,7 @@ func _process(delta: float) -> void:
 		sim.batch_lost = true
 		_say("釜にひびが入った… 中身は失われた", Color(0.9, 0.5, 0.4))
 	station.ph = sim.ph()
+	station.bottle_ready = _bottle_check()["ok"]
 	station.liquid_color = Color(0.5, 0.69, 0.54) if not sim.batch_lost else Color(0.3, 0.1, 0.1)
 	exploration.mark_visited(sim.position)
 	map_view.heat_ceiling_celsius = bench.fire.source.max_temperature if bench.fire != null else 0.0
@@ -103,22 +104,28 @@ func _check_hazard() -> void:
 	if sim.batch_lost and _toast_timer <= 0.0:
 		_say("暴走！ バッチは全損。「新しいバッチ」でやり直す", Color(0.9, 0.4, 0.3))
 
-func _on_bottle() -> void:
+## 瓶詰めできるか。瓶の光り方・ドロップ判定・断りの一言はすべてこの答えを見る。
+## 戻り値: { "ok": bool, "reason": String, "target": ReactionRegion|null }
+func _bottle_check() -> Dictionary:
 	if sim.batch_lost:
-		_say("暴走したバッチは瓶に詰められない", Color(0.9, 0.5, 0.4))
-		return
+		return {"ok": false, "reason": "暴走したバッチは瓶に詰められない", "target": null}
 	var here := sim.current_region()
 	if here == null or here.kind != ReactionRegion.Kind.TARGET:
-		_say("まだ何にもなっていない（目標の円の中に入っていない）", Color(0.95, 0.85, 0.6))
-		return
+		return {"ok": false, "reason": "まだ何にもなっていない（目標の円の中に入っていない）", "target": null}
 	var ratio := exploration.clear_ratio(here.center, here.radius)
 	if ratio < MapExploration.BOTTLE_CLEAR_RATIO:
-		_say("霧が濃くてまだ見えない… 円の中をもっと晴らす（%d%% / 50%%）" % int(round(ratio * 100.0)), Color(0.95, 0.85, 0.6))
-		return
+		return {"ok": false, "reason": "霧が濃くてまだ見えない… 円の中をもっと晴らす（%d%% / 50%%）" % int(round(ratio * 100.0)), "target": here}
 	var tgt := sim.reached_target()
 	if tgt == null:
-		_say("円の中だが pH が条件外（今 %.1f、要 %.0f〜%.0f）" % [sim.ph(), here.ph_min, here.ph_max], Color(0.95, 0.85, 0.6))
+		return {"ok": false, "reason": "円の中だが pH が条件外（今 %.1f、要 %.0f〜%.0f）" % [sim.ph(), here.ph_min, here.ph_max], "target": here}
+	return {"ok": true, "reason": "", "target": tgt}
+
+func _on_bottle() -> void:
+	var check := _bottle_check()
+	if not check["ok"]:
+		_say(check["reason"], Color(0.95, 0.85, 0.6))
 		return
+	var tgt: ReactionRegion = check["target"]
 	var note := sim.to_note()
 	notes.append(note)
 	var first := exploration.discover(tgt.product_id)

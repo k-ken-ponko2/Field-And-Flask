@@ -33,6 +33,8 @@ var sim: ReactionSim
 var liquid_color := Color(0.5, 0.69, 0.54)
 ## 現在の pH（釜の縁をリトマス色で塗る）。負なら表示しない。
 var ph := 7.0
+## 瓶詰めできる状態か（掛けてある瓶が金色に明滅し「瓶詰めできる」の札が出る）。
+var bottle_ready := false
 
 var _held: StringName = &""          ## 掴んでいる道具
 var _held_pos := Vector2.ZERO
@@ -207,6 +209,9 @@ func _draw() -> void:
 	for id in TOOL_HOOKS:
 		if id == _held:
 			continue
+		if id == &"bottle":
+			_draw_bottle_hook()
+			continue
 		LabAssets.blit_center(self, _tool_tex(id), TOOL_HOOKS[id])
 	if _held != &"":
 		var over := _over_cauldron(_held_pos)
@@ -246,6 +251,26 @@ func _draw_fire(c: Vector2) -> void:
 			for i in 3:
 				LabAssets.blit_bottom(self, LabAssets.TEX[&"log"], Vector2(70 + (i % 2) * 8, size.y - 10 - i * 18), i % 2 == 1)
 			_caption("今だ！ 火をクリックして薪を入れる" if fire.is_ember() else ("火が消えた — クリックで点け直す" if fire.is_out() else "燃え盛っている… 炎が小さくなるまで待つ"))
+
+## 掛けてある瓶。瓶詰めできるときは金色に明滅して札を出し、できない間は少し暗い。
+func _draw_bottle_hook() -> void:
+	var at: Vector2 = TOOL_HOOKS[&"bottle"]
+	var tex := _tool_tex(&"bottle")
+	if not bottle_ready:
+		LabAssets.blit_center(self, tex, at, false, Color(0.7, 0.7, 0.7, 0.85))
+		return
+	var pulse := 0.5 + 0.5 * sin(_flicker * 5.0)
+	draw_circle(at, 46.0 + 6.0 * pulse, Color(1.0, 0.8, 0.3, 0.18 + 0.12 * pulse))
+	LabAssets.dotted_circle(self, at, 40.0 + 4.0 * pulse, Color(1.0, 0.85, 0.4, 0.6 + 0.4 * pulse), 16, 3.0)
+	LabAssets.blit_center(self, tex, at, false, Color(1.0, 1.0, 1.0).lerp(Color(1.0, 0.95, 0.7), pulse))
+	# 札（インクの短冊）
+	var font := get_theme_default_font()
+	var label := "瓶詰めできる"
+	var tw := font.get_string_size(label, HORIZONTAL_ALIGNMENT_LEFT, -1, 13).x
+	var box := Rect2(at + Vector2(-tw * 0.5 - 8, 50), Vector2(tw + 16, 22))
+	draw_rect(box, LabAssets.PAPER)
+	draw_rect(box, LabAssets.INK, false, 2.0)
+	draw_string(font, box.position + Vector2(8, 16), label, HORIZONTAL_ALIGNMENT_LEFT, -1, 13, LabAssets.INK)
 
 ## pH の目盛り：リトマスの帯（0〜14）と現在値の印。縁の色をここで読む。
 func _draw_ph_scale(at: Vector2) -> void:
