@@ -29,7 +29,10 @@ const FAN_PIXELS_PER_UNIT := 100.0
 
 var bench: LabBench
 var sim: ReactionSim
+## 中身の色（暴走で黒ずむ）。pH は縁の色で示す。
 var liquid_color := Color(0.5, 0.69, 0.54)
+## 現在の pH（釜の縁をリトマス色で塗る）。負なら表示しない。
+var ph := 7.0
 
 var _held: StringName = &""          ## 掴んでいる道具
 var _held_pos := Vector2.ZERO
@@ -179,8 +182,14 @@ func _draw() -> void:
 	# 大釜（液面の色は pH）
 	var tex: Texture2D = LabAssets.TEX[&"cauldron"]
 	LabAssets.blit_center(self, tex, c)
-	# 液面（スプライトの液面の行を pH の色で塗り直す。楕円に沿って段をつける）
+	# 縁（リトマス色＝pH）。スプライトの縁の行を塗り直す。上の 1 行はハイライト
 	var px := LabAssets.PX
+	var rim := LabAssets.litmus(ph)
+	draw_rect(Rect2(c + Vector2(-21 * px, -13 * px), Vector2(42 * px, 4 * px)), rim)
+	draw_rect(Rect2(c + Vector2(-21 * px, -13 * px), Vector2(42 * px, px)), rim.lightened(0.35))
+	draw_rect(Rect2(c + Vector2(-21 * px, -10 * px), Vector2(42 * px, px)), rim.darkened(0.25))
+	_draw_ph_scale(Vector2(size.x * 0.5 - 90, 40))
+	# 液面（中身の色。楕円に沿って段をつける）
 	for row in [[-12, 10], [-11, 15], [-10, 17], [-9, 17], [-8, 15], [-7, 10]]:
 		draw_rect(Rect2(c + Vector2(-row[1] * px, row[0] * px), Vector2(row[1] * 2 * px, px)), liquid_color)
 	draw_rect(Rect2(c + Vector2(-15 * px, -11 * px), Vector2(30 * px, px)), liquid_color.lightened(0.25))
@@ -237,6 +246,23 @@ func _draw_fire(c: Vector2) -> void:
 			for i in 3:
 				LabAssets.blit_bottom(self, LabAssets.TEX[&"log"], Vector2(70 + (i % 2) * 8, size.y - 10 - i * 18), i % 2 == 1)
 			_caption("今だ！ 火をクリックして薪を入れる" if fire.is_ember() else ("火が消えた — クリックで点け直す" if fire.is_out() else "燃え盛っている… 炎が小さくなるまで待つ"))
+
+## pH の目盛り：リトマスの帯（0〜14）と現在値の印。縁の色をここで読む。
+func _draw_ph_scale(at: Vector2) -> void:
+	var px := LabAssets.PX
+	var seg_w := 3
+	for i in 15:
+		_blit_dot(at + Vector2(i * seg_w * px, 0), seg_w, 2, LabAssets.litmus(float(i)))
+	var x := at.x + clampf(ph, 0.0, 14.0) * seg_w * px
+	_blit_dot(Vector2(x - px, at.y - 2 * px), 2, 2, Color(1, 0.95, 0.85))
+	_blit_dot(Vector2(x - px * 0.5, at.y + 2 * px), 1, 1, Color(1, 0.95, 0.85))
+	var font := get_theme_default_font()
+	draw_string(font, at + Vector2(0, -12), "pH %.1f" % ph, HORIZONTAL_ALIGNMENT_LEFT, -1, 12, Color(1, 0.95, 0.85))
+	draw_string(font, at + Vector2(-2, 2 * px + 22), "酸", HORIZONTAL_ALIGNMENT_LEFT, -1, 11, Color(0.85, 0.75, 0.6))
+	draw_string(font, at + Vector2(15 * seg_w * px - 28, 2 * px + 22), "塩基", HORIZONTAL_ALIGNMENT_LEFT, -1, 11, Color(0.85, 0.75, 0.6))
+
+func _blit_dot(p: Vector2, w: int, h: int, color: Color) -> void:
+	draw_rect(Rect2(LabAssets.snap(p), Vector2(w * LabAssets.PX, h * LabAssets.PX)), color)
 
 func _caption(text: String) -> void:
 	var fz := fire_zone()

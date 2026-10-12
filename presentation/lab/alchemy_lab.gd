@@ -65,7 +65,8 @@ func _process(delta: float) -> void:
 	if bench.vessel_cracked and not sim.batch_lost:
 		sim.batch_lost = true
 		_say("釜にひびが入った… 中身は失われた", Color(0.9, 0.5, 0.4))
-	station.liquid_color = LabAssets.litmus(sim.ph()) if not sim.batch_lost else Color(0.3, 0.1, 0.1)
+	station.ph = sim.ph()
+	station.liquid_color = Color(0.5, 0.69, 0.54) if not sim.batch_lost else Color(0.3, 0.1, 0.1)
 	exploration.mark_visited(sim.position)
 	map_view.heat_ceiling_celsius = bench.fire.source.max_temperature if bench.fire != null else 0.0
 	if _toast_timer > 0.0:
